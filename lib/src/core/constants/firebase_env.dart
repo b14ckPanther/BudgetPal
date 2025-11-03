@@ -1,11 +1,10 @@
 // ignore_for_file: constant_identifier_names
 
-/// Firebase configuration values are provided via `--dart-define` or
-/// `--dart-define-from-file`. These constants read the injected values for
-/// each supported platform.
-///
-/// See `.env.example` for the expected keys.
-library firebase_env;
+// Firebase configuration values are provided via `--dart-define` or
+// `--dart-define-from-file`. These constants read the injected values for
+// each supported platform.
+//
+// See `.env.example` for the expected keys.
 
 // Web
 const String FIREBASE_WEB_API_KEY = String.fromEnvironment(

@@ -45,6 +45,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get forgotPasswordLink => 'هل نسيت كلمة المرور؟';
 
   @override
+  String get authIdentifierLabel => 'البريد الإلكتروني أو اسم المستخدم';
+
+  @override
+  String get authIdentifierHelper =>
+      'يمكنك إدخال بريدك الإلكتروني أو اسم المستخدم.';
+
+  @override
+  String get authIdentifierRequired => 'أدخل بريدك الإلكتروني أو اسم المستخدم.';
+
+  @override
+  String get usernameLabel => 'اسم المستخدم';
+
+  @override
+  String get usernameHelper =>
+      '٣ أحرف على الأقل. أحرف، أرقام، نقطة، شرطة أو شرطة سفلية.';
+
+  @override
+  String get usernameRequiredError => 'اختر اسم مستخدم.';
+
+  @override
+  String get usernameInvalidError =>
+      'استخدم ٣ أحرف على الأقل (أحرف، أرقام، نقطة، شرطة أو شرطة سفلية).';
+
+  @override
   String get passwordResetTitle => 'إعادة تعيين كلمة المرور';
 
   @override
@@ -499,6 +523,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get authErrorWeakPassword => 'اختر كلمة مرور أقوى لحماية حسابك.';
+
+  @override
+  String get authErrorUsernameTaken => 'اسم المستخدم مسجّل بالفعل.';
 
   @override
   String get authErrorUnknown => 'تعذّر إكمال الطلب. حاول مجددًا بعد قليل.';

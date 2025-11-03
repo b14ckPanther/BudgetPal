@@ -12,6 +12,13 @@
   "toggleToLogin": "لديك حساب بالفعل؟ سجّل الدخول",
   "rememberMeLabel": "تذكرني على هذا الجهاز",
   "forgotPasswordLink": "هل نسيت كلمة المرور؟",
+  "authIdentifierLabel": "البريد الإلكتروني أو اسم المستخدم",
+  "authIdentifierHelper": "يمكنك إدخال بريدك الإلكتروني أو اسم المستخدم.",
+  "authIdentifierRequired": "أدخل بريدك الإلكتروني أو اسم المستخدم.",
+  "usernameLabel": "اسم المستخدم",
+  "usernameHelper": "٣ أحرف على الأقل. أحرف، أرقام، نقطة، شرطة أو شرطة سفلية.",
+  "usernameRequiredError": "اختر اسم مستخدم.",
+  "usernameInvalidError": "استخدم ٣ أحرف على الأقل (أحرف، أرقام، نقطة، شرطة أو شرطة سفلية).",
   "passwordResetTitle": "إعادة تعيين كلمة المرور",
   "passwordResetDescription": "أدخل بريدك الإلكتروني للحصول على رابط إعادة تعيين كلمة المرور.",
   "passwordResetSendButton": "إرسال رابط إعادة التعيين",
@@ -154,5 +161,6 @@
   "authErrorTooManyRequests": "محاولات كثيرة جدًا. حاول مرة أخرى لاحقًا.",
   "authErrorEmailAlreadyInUse": "يوجد حساب مسجل مسبقًا بهذا البريد الإلكتروني.",
   "authErrorWeakPassword": "اختر كلمة مرور أقوى لحماية حسابك.",
+  "authErrorUsernameTaken": "اسم المستخدم مسجّل بالفعل.",
   "authErrorUnknown": "تعذّر إكمال الطلب. حاول مجددًا بعد قليل."
 }

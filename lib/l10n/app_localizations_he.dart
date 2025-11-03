@@ -45,6 +45,29 @@ class AppLocalizationsHe extends AppLocalizations {
   String get forgotPasswordLink => 'שכחת סיסמה?';
 
   @override
+  String get authIdentifierLabel => 'דוא״ל או שם משתמש';
+
+  @override
+  String get authIdentifierHelper => 'אפשר להזין כתובת דוא״ל או שם משתמש.';
+
+  @override
+  String get authIdentifierRequired => 'הזן כתובת דוא״ל או שם משתמש.';
+
+  @override
+  String get usernameLabel => 'שם משתמש';
+
+  @override
+  String get usernameHelper =>
+      'לפחות 3 תווים: אותיות, מספרים, נקודה, מקף או קו תחתון.';
+
+  @override
+  String get usernameRequiredError => 'בחר שם משתמש.';
+
+  @override
+  String get usernameInvalidError =>
+      'השתמש בלפחות 3 תווים (אותיות, מספרים, נקודה, מקף או קו תחתון).';
+
+  @override
   String get passwordResetTitle => 'איפוס סיסמה';
 
   @override
@@ -493,6 +516,9 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get authErrorWeakPassword => 'בחרו סיסמה חזקה יותר להגנה על החשבון.';
+
+  @override
+  String get authErrorUsernameTaken => 'שם המשתמש כבר תפוס.';
 
   @override
   String get authErrorUnknown => 'לא ניתן להשלים את הבקשה. נסו שוב בעוד רגע.';

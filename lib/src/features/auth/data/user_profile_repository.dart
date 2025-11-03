@@ -16,9 +16,12 @@ class UserProfileRepository {
 
   final FirebaseFirestore _firestore;
 
+  String normalizeUsername(String username) => username.trim().toLowerCase();
+
   Future<void> createUserProfile({
     required String uid,
     required String email,
+    required String username,
   }) async {
     await _firestore.doc(artifactsDocumentPath()).set({
       'initializedAt': FieldValue.serverTimestamp(),
@@ -28,6 +31,7 @@ class UserProfileRepository {
       'email': email,
       'bankBalance': 0,
       'overdraftLimit': 0,
+      'username': username,
       'preferredThemeMode': 'system',
       'preferredLocale': 'he',
       'createdAt': FieldValue.serverTimestamp(),
@@ -57,8 +61,9 @@ class UserProfileRepository {
   Future<UserProfile> ensureUserProfile({
     required String uid,
     required String email,
+    String? username,
   }) async {
-    await createUserProfile(uid: uid, email: email);
+    await createUserProfile(uid: uid, email: email, username: username ?? '');
     final snapshot = await _firestore.doc(userDocumentPath(uid)).get();
     return UserProfile.fromSnapshot(snapshot);
   }
@@ -88,4 +93,64 @@ class UserProfileRepository {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
+
+  Future<void> updateUsername({
+    required String uid,
+    required String username,
+  }) async {
+    final docRef = _firestore.doc(userDocumentPath(uid));
+    await docRef.set({
+      'username': username,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> reserveUsername({
+    required String username,
+    required String uid,
+    required String email,
+  }) async {
+    final normalized = normalizeUsername(username);
+    final docRef = _firestore.doc(usernameDocumentPath(normalized));
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (snapshot.exists) {
+        throw const UsernameAlreadyTakenException();
+      }
+      transaction.set(docRef, {
+        'uid': uid,
+        'email': email,
+        'username': normalized,
+        'reservedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> releaseUsername(String username) async {
+    final normalized = normalizeUsername(username);
+    final docRef = _firestore.doc(usernameDocumentPath(normalized));
+    await docRef.delete();
+  }
+
+  Future<String?> emailForUsername(String username) async {
+    final normalized = normalizeUsername(username);
+    final docRef = _firestore.doc(usernameDocumentPath(normalized));
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      return null;
+    }
+    final data = snapshot.data();
+    if (data == null) {
+      return null;
+    }
+    return data['email'] as String?;
+  }
+}
+
+class UsernameAlreadyTakenException implements Exception {
+  const UsernameAlreadyTakenException();
+}
+
+class UsernameNotFoundException implements Exception {
+  const UsernameNotFoundException();
 }

@@ -12,6 +12,13 @@
   "toggleToLogin": "כבר יש לך חשבון? התחבר",
   "rememberMeLabel": "זכור אותי במכשיר זה",
   "forgotPasswordLink": "שכחת סיסמה?",
+  "authIdentifierLabel": "דוא״ל או שם משתמש",
+  "authIdentifierHelper": "אפשר להזין כתובת דוא״ל או שם משתמש.",
+  "authIdentifierRequired": "הזן כתובת דוא״ל או שם משתמש.",
+  "usernameLabel": "שם משתמש",
+  "usernameHelper": "לפחות 3 תווים: אותיות, מספרים, נקודה, מקף או קו תחתון.",
+  "usernameRequiredError": "בחר שם משתמש.",
+  "usernameInvalidError": "השתמש בלפחות 3 תווים (אותיות, מספרים, נקודה, מקף או קו תחתון).",
   "passwordResetTitle": "איפוס סיסמה",
   "passwordResetDescription": "הזן את האימייל כדי לקבל קישור לאיפוס הסיסמה.",
   "passwordResetSendButton": "שלח קישור לאיפוס",
@@ -154,5 +161,6 @@
   "authErrorTooManyRequests": "בוצעו יותר מדי ניסיונות. נסו שוב מאוחר יותר.",
   "authErrorEmailAlreadyInUse": "כבר קיים חשבון עם כתובת אימייל זו.",
   "authErrorWeakPassword": "בחרו סיסמה חזקה יותר להגנה על החשבון.",
+  "authErrorUsernameTaken": "שם המשתמש כבר תפוס.",
   "authErrorUnknown": "לא ניתן להשלים את הבקשה. נסו שוב בעוד רגע."
 }

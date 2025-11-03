@@ -2,8 +2,7 @@ const String appArtifactId = 'nasfinpro';
 
 String artifactsDocumentPath() => 'artifacts/$appArtifactId';
 
-String userDocumentPath(String uid) =>
-    'artifacts/$appArtifactId/users/$uid';
+String userDocumentPath(String uid) => 'artifacts/$appArtifactId/users/$uid';
 
 String userTransactionsCollectionPath(String uid) =>
     '${userDocumentPath(uid)}/transactions';
@@ -16,3 +15,6 @@ String userCategoriesCollectionPath(String uid) =>
 
 String userCategoryDocumentPath(String uid, String categoryId) =>
     '${userCategoriesCollectionPath(uid)}/$categoryId';
+
+String usernameDocumentPath(String username) =>
+    'artifacts/$appArtifactId/usernames/${username.toLowerCase()}';

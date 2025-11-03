@@ -45,6 +45,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get forgotPasswordLink => 'Forgot password?';
 
   @override
+  String get authIdentifierLabel => 'Email or username';
+
+  @override
+  String get authIdentifierHelper =>
+      'You can enter your email address or username.';
+
+  @override
+  String get authIdentifierRequired => 'Enter your email address or username.';
+
+  @override
+  String get usernameLabel => 'Username';
+
+  @override
+  String get usernameHelper =>
+      '3+ characters. Letters, numbers, dot, dash, or underscore.';
+
+  @override
+  String get usernameRequiredError => 'Choose a username.';
+
+  @override
+  String get usernameInvalidError =>
+      'Use at least 3 characters (letters, numbers, dot, dash, underscore).';
+
+  @override
   String get passwordResetTitle => 'Reset password';
 
   @override
@@ -503,6 +527,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get authErrorWeakPassword =>
       'Choose a stronger password to protect your account.';
+
+  @override
+  String get authErrorUsernameTaken => 'That username is already taken.';
 
   @override
   String get authErrorUnknown =>

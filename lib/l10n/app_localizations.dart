@@ -172,6 +172,48 @@ abstract class AppLocalizations {
   /// **'Forgot password?'**
   String get forgotPasswordLink;
 
+  /// No description provided for @authIdentifierLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Email or username'**
+  String get authIdentifierLabel;
+
+  /// No description provided for @authIdentifierHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'You can enter your email address or username.'**
+  String get authIdentifierHelper;
+
+  /// No description provided for @authIdentifierRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your email address or username.'**
+  String get authIdentifierRequired;
+
+  /// No description provided for @usernameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get usernameLabel;
+
+  /// No description provided for @usernameHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'3+ characters. Letters, numbers, dot, dash, or underscore.'**
+  String get usernameHelper;
+
+  /// No description provided for @usernameRequiredError.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a username.'**
+  String get usernameRequiredError;
+
+  /// No description provided for @usernameInvalidError.
+  ///
+  /// In en, this message translates to:
+  /// **'Use at least 3 characters (letters, numbers, dot, dash, underscore).'**
+  String get usernameInvalidError;
+
   /// No description provided for @passwordResetTitle.
   ///
   /// In en, this message translates to:
@@ -1023,6 +1065,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose a stronger password to protect your account.'**
   String get authErrorWeakPassword;
+
+  /// No description provided for @authErrorUsernameTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'That username is already taken.'**
+  String get authErrorUsernameTaken;
 
   /// No description provided for @authErrorUnknown.
   ///

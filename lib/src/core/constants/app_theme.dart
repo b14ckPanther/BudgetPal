@@ -23,16 +23,17 @@ class NasFinProTheme {
   static ThemeData light(Locale locale) {
     final base = ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: NasFinProPalette.primary,
-        brightness: Brightness.light,
-      ).copyWith(
-        primary: NasFinProPalette.primary,
-        secondary: NasFinProPalette.accent,
-        surface: NasFinProPalette.surfaceLight,
-        surfaceContainerHighest: NasFinProPalette.surfaceLight,
-        error: NasFinProPalette.error,
-      ),
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: NasFinProPalette.primary,
+            brightness: Brightness.light,
+          ).copyWith(
+            primary: NasFinProPalette.primary,
+            secondary: NasFinProPalette.accent,
+            surface: NasFinProPalette.surfaceLight,
+            surfaceContainerHighest: NasFinProPalette.surfaceLight,
+            error: NasFinProPalette.error,
+          ),
     );
 
     final textTheme = _textTheme(
@@ -74,8 +75,8 @@ class NasFinProTheme {
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
-        textStyle: WidgetStatePropertyAll(
-          textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          textStyle: WidgetStatePropertyAll(
+            textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -95,7 +96,10 @@ class NasFinProTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: NasFinProPalette.neutralSoft),
@@ -106,7 +110,10 @@ class NasFinProTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: NasFinProPalette.primaryStrong, width: 2),
+          borderSide: BorderSide(
+            color: NasFinProPalette.primaryStrong,
+            width: 2,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -120,9 +127,7 @@ class NasFinProTheme {
         selectedColor: NasFinProPalette.primary.withValues(alpha: 0.12),
         labelStyle: textTheme.labelLarge,
         side: const BorderSide(color: NasFinProPalette.neutralSoft),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: NasFinProPalette.surfaceLight,
@@ -142,7 +147,9 @@ class NasFinProTheme {
         backgroundColor: NasFinProPalette.surfaceLight,
         indicatorColor: NasFinProPalette.primary.withValues(alpha: 0.12),
         selectedIconTheme: const IconThemeData(color: NasFinProPalette.primary),
-        unselectedIconTheme: const IconThemeData(color: NasFinProPalette.neutral),
+        unselectedIconTheme: const IconThemeData(
+          color: NasFinProPalette.neutral,
+        ),
         selectedLabelTextStyle: textTheme.labelLarge?.copyWith(
           color: NasFinProPalette.primary,
           fontWeight: FontWeight.w600,
@@ -157,15 +164,11 @@ class NasFinProTheme {
           color: NasFinProPalette.surfaceLight,
         ),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: NasFinProPalette.surfaceLight,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
@@ -173,16 +176,17 @@ class NasFinProTheme {
   static ThemeData dark(Locale locale) {
     final base = ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: NasFinProPalette.accent,
-        brightness: Brightness.dark,
-      ).copyWith(
-        primary: NasFinProPalette.accent,
-        secondary: NasFinProPalette.primary,
-        surface: NasFinProPalette.surfaceDark,
-        surfaceContainerHighest: NasFinProPalette.surfaceDark,
-        error: NasFinProPalette.error,
-      ),
+      colorScheme:
+          ColorScheme.fromSeed(
+            seedColor: NasFinProPalette.accent,
+            brightness: Brightness.dark,
+          ).copyWith(
+            primary: NasFinProPalette.accent,
+            secondary: NasFinProPalette.primary,
+            surface: NasFinProPalette.surfaceDark,
+            surfaceContainerHighest: NasFinProPalette.surfaceDark,
+            error: NasFinProPalette.error,
+          ),
     );
 
     final textTheme = _textTheme(
@@ -224,10 +228,12 @@ class NasFinProTheme {
           shape: WidgetStatePropertyAll(
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
-          backgroundColor:
-              const WidgetStatePropertyAll<Color>(NasFinProPalette.accent),
-          foregroundColor:
-              const WidgetStatePropertyAll<Color>(NasFinProPalette.neutralStrong),
+          backgroundColor: const WidgetStatePropertyAll<Color>(
+            NasFinProPalette.accent,
+          ),
+          foregroundColor: const WidgetStatePropertyAll<Color>(
+            NasFinProPalette.neutralStrong,
+          ),
           textStyle: WidgetStatePropertyAll(
             textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
           ),
@@ -244,14 +250,18 @@ class NasFinProTheme {
           side: const WidgetStatePropertyAll(
             BorderSide(color: NasFinProPalette.borderDark),
           ),
-          foregroundColor:
-              const WidgetStatePropertyAll<Color>(NasFinProPalette.accent),
+          foregroundColor: const WidgetStatePropertyAll<Color>(
+            NasFinProPalette.accent,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: NasFinProPalette.surfaceDark,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: NasFinProPalette.borderDark),
@@ -268,19 +278,15 @@ class NasFinProTheme {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: NasFinProPalette.error),
         ),
-        labelStyle:
-            const TextStyle(color: NasFinProPalette.textMutedDark),
-        helperStyle:
-            const TextStyle(color: NasFinProPalette.textMutedDark),
+        labelStyle: const TextStyle(color: NasFinProPalette.textMutedDark),
+        helperStyle: const TextStyle(color: NasFinProPalette.textMutedDark),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: NasFinProPalette.surfaceDark,
         selectedColor: NasFinProPalette.accent.withValues(alpha: 0.18),
         labelStyle: textTheme.labelLarge,
         side: const BorderSide(color: NasFinProPalette.borderDark),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: NasFinProPalette.surfaceDark,
@@ -311,50 +317,37 @@ class NasFinProTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: NasFinProPalette.surfaceDark,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(
-          color: Colors.white,
-        ),
+        contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: NasFinProPalette.surfaceDark,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }
 
-  static TextTheme _textTheme(
-    TextTheme base,
-    Color color,
-    Locale locale,
-  ) {
+  static TextTheme _textTheme(TextTheme base, Color color, Locale locale) {
     final localized = locale.languageCode == 'ar'
         ? GoogleFonts.cairoTextTheme(base)
         : GoogleFonts.openSansTextTheme(base);
 
-    return localized.apply(
-      displayColor: color,
-      bodyColor: color,
-    ).copyWith(
-      headlineMedium: localized.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.1,
-      ),
-      titleLarge: localized.titleLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
-      bodyLarge: localized.bodyLarge?.copyWith(
-        height: 1.4,
-      ),
-      labelLarge: localized.labelLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.2,
-      ),
-    );
+    return localized
+        .apply(displayColor: color, bodyColor: color)
+        .copyWith(
+          headlineMedium: localized.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.1,
+          ),
+          titleLarge: localized.titleLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+          bodyLarge: localized.bodyLarge?.copyWith(height: 1.4),
+          labelLarge: localized.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        );
   }
 }

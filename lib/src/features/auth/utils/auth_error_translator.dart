@@ -2,7 +2,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:budgetpal/l10n/app_localizations.dart';
 
+import '../data/user_profile_repository.dart';
+
 String mapAuthError(AppLocalizations l10n, Object error) {
+  if (error is UsernameAlreadyTakenException) {
+    return l10n.authErrorUsernameTaken;
+  }
+  if (error is UsernameNotFoundException) {
+    return l10n.authErrorUserNotFound;
+  }
   if (error is FirebaseAuthException) {
     switch (error.code) {
       case 'invalid-credential':

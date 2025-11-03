@@ -7,6 +7,7 @@ class UserProfile {
     required this.email,
     required this.bankBalance,
     required this.overdraftLimit,
+    required this.username,
     required this.preferredThemeMode,
     required this.preferredLocale,
     required this.createdAt,
@@ -17,6 +18,7 @@ class UserProfile {
   final String email;
   final double bankBalance;
   final double overdraftLimit;
+  final String username;
   final String preferredThemeMode;
   final String preferredLocale;
   final DateTime? createdAt;
@@ -31,6 +33,7 @@ class UserProfile {
       'email': email,
       'bankBalance': bankBalance,
       'overdraftLimit': overdraftLimit,
+      'username': username,
       'preferredThemeMode': preferredThemeMode,
       'preferredLocale': preferredLocale,
       'createdAt': createdAt,
@@ -47,6 +50,7 @@ class UserProfile {
       email: data['email'] as String? ?? '',
       bankBalance: (data['bankBalance'] as num?)?.toDouble() ?? 0,
       overdraftLimit: (data['overdraftLimit'] as num?)?.toDouble() ?? 0,
+      username: data['username'] as String? ?? '',
       preferredThemeMode: data['preferredThemeMode'] as String? ?? 'system',
       preferredLocale: data['preferredLocale'] as String? ?? 'he',
       createdAt: _asDateTime(data['createdAt']),
@@ -58,6 +62,7 @@ class UserProfile {
     String? email,
     double? bankBalance,
     double? overdraftLimit,
+    String? username,
     String? preferredThemeMode,
     String? preferredLocale,
     DateTime? createdAt,
@@ -68,6 +73,7 @@ class UserProfile {
       email: email ?? this.email,
       bankBalance: bankBalance ?? this.bankBalance,
       overdraftLimit: overdraftLimit ?? this.overdraftLimit,
+      username: username ?? this.username,
       preferredThemeMode: preferredThemeMode ?? this.preferredThemeMode,
       preferredLocale: preferredLocale ?? this.preferredLocale,
       createdAt: createdAt ?? this.createdAt,

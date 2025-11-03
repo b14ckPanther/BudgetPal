@@ -12,6 +12,13 @@
   "toggleToLogin": "Already have an account? Sign in",
   "rememberMeLabel": "Remember me on this device",
   "forgotPasswordLink": "Forgot password?",
+  "authIdentifierLabel": "Email or username",
+  "authIdentifierHelper": "You can enter your email address or username.",
+  "authIdentifierRequired": "Enter your email address or username.",
+  "usernameLabel": "Username",
+  "usernameHelper": "3+ characters. Letters, numbers, dot, dash, or underscore.",
+  "usernameRequiredError": "Choose a username.",
+  "usernameInvalidError": "Use at least 3 characters (letters, numbers, dot, dash, underscore).",
   "passwordResetTitle": "Reset password",
   "passwordResetDescription": "Enter your email to receive a password reset link.",
   "passwordResetSendButton": "Send reset link",
@@ -154,5 +161,6 @@
   "authErrorTooManyRequests": "Too many attempts. Please try again later.",
   "authErrorEmailAlreadyInUse": "An account already exists with this email address.",
   "authErrorWeakPassword": "Choose a stronger password to protect your account.",
+  "authErrorUsernameTaken": "That username is already taken.",
   "authErrorUnknown": "Unable to complete the request. Try again in a moment."
 }

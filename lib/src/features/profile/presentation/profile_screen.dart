@@ -19,27 +19,35 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
+enum _ProfilePendingOperation { none, financial, username }
+
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _usernameFormKey = GlobalKey<FormState>();
   late final TextEditingController _balanceController;
   late final TextEditingController _overdraftController;
+  late final TextEditingController _usernameController;
 
   UserProfile? _serverProfile;
   UserProfile? _appliedProfile;
   bool _isDirty = false;
+  bool _isUsernameDirty = false;
   bool _isSendingReset = false;
+  _ProfilePendingOperation _pendingOperation = _ProfilePendingOperation.none;
 
   @override
   void initState() {
     super.initState();
     _balanceController = TextEditingController();
     _overdraftController = TextEditingController();
+    _usernameController = TextEditingController();
   }
 
   @override
   void dispose() {
     _balanceController.dispose();
     _overdraftController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -51,8 +59,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profileUpdateState = ref.watch(profileControllerProvider);
     final authState = ref.watch(authControllerProvider);
 
-    ref.listen<AsyncValue<void>>(profileControllerProvider,
-        (previous, next) {
+    ref.listen<AsyncValue<void>>(profileControllerProvider, (previous, next) {
       next.when(
         data: (_) {
           if (previous?.isLoading == true && mounted) {
@@ -62,7 +69,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 SnackBar(content: Text(l10n.profileUpdateSuccess)),
               );
             setState(() {
-              _isDirty = false;
+              final operation = _pendingOperation;
+              if (operation == _ProfilePendingOperation.financial ||
+                  operation == _ProfilePendingOperation.none) {
+                _isDirty = false;
+              }
+              if (operation == _ProfilePendingOperation.username ||
+                  operation == _ProfilePendingOperation.none) {
+                _isUsernameDirty = false;
+              }
+              _pendingOperation = _ProfilePendingOperation.none;
             });
           }
         },
@@ -72,9 +88,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           }
           ScaffoldMessenger.of(context)
             ..clearSnackBars()
-            ..showSnackBar(
-              SnackBar(content: Text(l10n.profileUpdateError)),
-            );
+            ..showSnackBar(SnackBar(content: Text(mapAuthError(l10n, error))));
+          setState(() {
+            _pendingOperation = _ProfilePendingOperation.none;
+          });
         },
         loading: () {},
       );
@@ -93,22 +110,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           formKey: _formKey,
           balanceController: _balanceController,
           overdraftController: _overdraftController,
+          usernameController: _usernameController,
           profile: profile,
           isDirty: _isDirty,
-          isSaving: profileUpdateState.isLoading,
+          isFinancialSaving:
+              profileUpdateState.isLoading &&
+              _pendingOperation == _ProfilePendingOperation.financial,
+          isUsernameDirty: _isUsernameDirty,
+          isUsernameSaving:
+              profileUpdateState.isLoading &&
+              _pendingOperation == _ProfilePendingOperation.username,
           isAuthBusy: authState.isLoading || _isSendingReset,
           settings: settings,
           onBalanceChanged: _markDirty,
           onOverdraftChanged: _markDirty,
+          onUsernameChanged: _markUsernameDirty,
           onSave: () => _submit(profile),
           onReset: _resetForm,
+          onUsernameSave: () => _submitUsername(profile, l10n),
+          onUsernameReset: _resetUsernameField,
           onPasswordReset: () => _sendPasswordReset(profile.email, l10n),
           onSignOut: () => _confirmSignOut(l10n),
-          onThemeChanged:
-              ref.read(appSettingsControllerProvider.notifier).updateThemeMode,
-          onLocaleChanged:
-              ref.read(appSettingsControllerProvider.notifier).updateLocale,
+          onThemeChanged: ref
+              .read(appSettingsControllerProvider.notifier)
+              .updateThemeMode,
+          onLocaleChanged: ref
+              .read(appSettingsControllerProvider.notifier)
+              .updateLocale,
           localeLabelBuilder: _localeDisplayName,
+          usernameFormKey: _usernameFormKey,
+          usernameHelper: l10n.usernameHelper,
           overdraftHelper: l10n.profileOverdraftHelper,
         );
       },
@@ -126,7 +157,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _serverProfile = profile;
     final applied = _appliedProfile;
     final hasUidChanged = applied?.uid != profile.uid;
-    final valuesChanged = applied == null ||
+    final valuesChanged =
+        applied == null ||
         applied.bankBalance != profile.bankBalance ||
         applied.overdraftLimit != profile.overdraftLimit;
     if (hasUidChanged || (!_isDirty && valuesChanged)) {
@@ -153,9 +185,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           selection: TextSelection.collapsed(offset: overdraftText.length),
         );
       }
+      final usernameText = profile.username;
+      if (_usernameController.text != usernameText) {
+        _usernameController.value = TextEditingValue(
+          text: usernameText,
+          selection: TextSelection.collapsed(offset: usernameText.length),
+        );
+      }
       setState(() {
         _appliedProfile = profile;
         _isDirty = false;
+        _isUsernameDirty = false;
       });
     });
   }
@@ -168,6 +208,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  void _markUsernameDirty([String? _]) {
+    final serverUsername = _serverProfile?.username.trim().toLowerCase() ?? '';
+    final currentValue = _usernameController.text.trim().toLowerCase();
+    final shouldBeDirty = currentValue != serverUsername;
+    if (_isUsernameDirty != shouldBeDirty) {
+      setState(() {
+        _isUsernameDirty = shouldBeDirty;
+      });
+    }
+  }
+
   Future<void> _submit(UserProfile profile) async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -175,10 +226,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     FocusScope.of(context).unfocus();
     final balance = double.tryParse(_balanceController.text.trim()) ?? 0;
     final overdraft = double.tryParse(_overdraftController.text.trim()) ?? 0;
-    await ref.read(profileControllerProvider.notifier).updateFinancials(
-          bankBalance: balance,
-          overdraftLimit: overdraft,
-        );
+    _pendingOperation = _ProfilePendingOperation.financial;
+    await ref
+        .read(profileControllerProvider.notifier)
+        .updateFinancials(bankBalance: balance, overdraftLimit: overdraft);
   }
 
   void _resetForm() {
@@ -187,6 +238,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (profile != null) {
       _applyProfileToForm(profile);
     }
+  }
+
+  void _resetUsernameField() {
+    FocusScope.of(context).unfocus();
+    final profile = _serverProfile;
+    if (profile == null) {
+      return;
+    }
+    final usernameText = profile.username;
+    if (_usernameController.text != usernameText) {
+      _usernameController.value = TextEditingValue(
+        text: usernameText,
+        selection: TextSelection.collapsed(offset: usernameText.length),
+      );
+    }
+    setState(() {
+      _isUsernameDirty = false;
+    });
   }
 
   Future<void> _sendPasswordReset(String email, AppLocalizations l10n) async {
@@ -216,12 +285,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         final message = mapAuthError(l10n, error);
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
-          ..showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ..showSnackBar(SnackBar(content: Text(message)));
       },
       loading: () {},
     );
+  }
+
+  Future<void> _submitUsername(
+    UserProfile profile,
+    AppLocalizations l10n,
+  ) async {
+    if (!(_usernameFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    final newUsername = _usernameController.text.trim();
+    final currentNormalized = profile.username.trim().toLowerCase();
+    final newNormalized = newUsername.toLowerCase();
+    if (newNormalized == currentNormalized) {
+      setState(() {
+        _isUsernameDirty = false;
+      });
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    _pendingOperation = _ProfilePendingOperation.username;
+    await ref
+        .read(profileControllerProvider.notifier)
+        .updateUsername(
+          username: newUsername,
+          currentUsername: profile.username,
+        );
   }
 
   Future<void> _confirmSignOut(AppLocalizations l10n) async {
@@ -265,43 +359,59 @@ class _ProfileContent extends StatelessWidget {
   const _ProfileContent({
     required this.l10n,
     required this.formKey,
+    required this.usernameFormKey,
     required this.balanceController,
     required this.overdraftController,
+    required this.usernameController,
     required this.profile,
     required this.isDirty,
-    required this.isSaving,
+    required this.isFinancialSaving,
+    required this.isUsernameDirty,
+    required this.isUsernameSaving,
     required this.isAuthBusy,
     required this.settings,
     required this.onBalanceChanged,
     required this.onOverdraftChanged,
+    required this.onUsernameChanged,
     required this.onSave,
     required this.onReset,
+    required this.onUsernameSave,
+    required this.onUsernameReset,
     required this.onPasswordReset,
     required this.onSignOut,
     required this.onThemeChanged,
     required this.onLocaleChanged,
     required this.localeLabelBuilder,
+    required this.usernameHelper,
     required this.overdraftHelper,
   });
 
   final AppLocalizations l10n;
   final GlobalKey<FormState> formKey;
+  final GlobalKey<FormState> usernameFormKey;
   final TextEditingController balanceController;
   final TextEditingController overdraftController;
+  final TextEditingController usernameController;
   final UserProfile profile;
   final bool isDirty;
-  final bool isSaving;
+  final bool isFinancialSaving;
+  final bool isUsernameDirty;
+  final bool isUsernameSaving;
   final bool isAuthBusy;
   final AppSettingsState settings;
   final VoidCallback onBalanceChanged;
   final VoidCallback onOverdraftChanged;
+  final ValueChanged<String> onUsernameChanged;
   final VoidCallback onSave;
   final VoidCallback onReset;
+  final VoidCallback onUsernameSave;
+  final VoidCallback onUsernameReset;
   final VoidCallback onPasswordReset;
   final VoidCallback onSignOut;
   final void Function(ThemeMode mode, {bool persist}) onThemeChanged;
   final void Function(Locale locale, {bool persist}) onLocaleChanged;
   final String Function(Locale locale) localeLabelBuilder;
+  final String usernameHelper;
   final String overdraftHelper;
 
   @override
@@ -312,22 +422,24 @@ class _ProfileContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.profileTitle,
-            style: theme.textTheme.headlineMedium,
-          ),
+          Text(l10n.profileTitle, style: theme.textTheme.headlineMedium),
           const SizedBox(height: 12),
-          Text(
-            l10n.profileSubtitle,
-            style: theme.textTheme.bodyLarge,
-          ),
+          Text(l10n.profileSubtitle, style: theme.textTheme.bodyLarge),
           const SizedBox(height: 24),
           _AccountSection(
             l10n: l10n,
             profile: profile,
             isBusy: isAuthBusy,
+            isUsernameSaving: isUsernameSaving,
+            usernameFormKey: usernameFormKey,
+            usernameController: usernameController,
+            isUsernameDirty: isUsernameDirty,
             onPasswordReset: onPasswordReset,
             onSignOut: onSignOut,
+            onUsernameChanged: onUsernameChanged,
+            onUsernameSave: onUsernameSave,
+            onUsernameReset: onUsernameReset,
+            usernameHelper: usernameHelper,
           ),
           const SizedBox(height: 24),
           _FinancialSection(
@@ -336,7 +448,7 @@ class _ProfileContent extends StatelessWidget {
             balanceController: balanceController,
             overdraftController: overdraftController,
             isDirty: isDirty,
-            isSaving: isSaving,
+            isSaving: isFinancialSaving,
             onBalanceChanged: onBalanceChanged,
             onOverdraftChanged: onOverdraftChanged,
             onSave: onSave,
@@ -362,6 +474,14 @@ class _AccountSection extends StatelessWidget {
     required this.l10n,
     required this.profile,
     required this.isBusy,
+    required this.isUsernameSaving,
+    required this.usernameFormKey,
+    required this.usernameController,
+    required this.isUsernameDirty,
+    required this.onUsernameChanged,
+    required this.onUsernameSave,
+    required this.onUsernameReset,
+    required this.usernameHelper,
     required this.onPasswordReset,
     required this.onSignOut,
   });
@@ -369,6 +489,14 @@ class _AccountSection extends StatelessWidget {
   final AppLocalizations l10n;
   final UserProfile profile;
   final bool isBusy;
+  final bool isUsernameSaving;
+  final GlobalKey<FormState> usernameFormKey;
+  final TextEditingController usernameController;
+  final bool isUsernameDirty;
+  final ValueChanged<String> onUsernameChanged;
+  final VoidCallback onUsernameSave;
+  final VoidCallback onUsernameReset;
+  final String usernameHelper;
   final VoidCallback onPasswordReset;
   final VoidCallback onSignOut;
 
@@ -388,13 +516,64 @@ class _AccountSection extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               l10n.profileAccountEmailLabel,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
-            SelectableText(
-              profile.email,
-              style: theme.textTheme.bodyLarge,
+            SelectableText(profile.email, style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 16),
+            Form(
+              key: usernameFormKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: usernameController,
+                    enabled: !isBusy && !isUsernameSaving,
+                    decoration: InputDecoration(
+                      labelText: l10n.usernameLabel,
+                      helperText: usernameHelper,
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
+                    validator: (value) {
+                      final trimmed = value?.trim() ?? '';
+                      if (trimmed.isEmpty) {
+                        return l10n.usernameRequiredError;
+                      }
+                      final isValid = RegExp(
+                        r'^[A-Za-z0-9._-]{3,}$',
+                      ).hasMatch(trimmed);
+                      if (!isValid) {
+                        return l10n.usernameInvalidError;
+                      }
+                      return null;
+                    },
+                    onChanged: onUsernameChanged,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      FilledButton(
+                        onPressed:
+                            (!isUsernameDirty || isBusy || isUsernameSaving)
+                            ? null
+                            : onUsernameSave,
+                        child: Text(l10n.profileFormSave),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton(
+                        onPressed:
+                            (!isUsernameDirty || isBusy || isUsernameSaving)
+                            ? null
+                            : onUsernameReset,
+                        child: Text(l10n.profileFormReset),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             Wrap(
@@ -573,8 +752,9 @@ class _PreferencesSection extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               l10n.themeToggleLabel,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             SegmentedButton<ThemeMode>(
@@ -599,16 +779,15 @@ class _PreferencesSection extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               l10n.profileLocaleLabel,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<Locale>(
               key: ValueKey(settings.locale),
               initialValue: settings.locale,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(border: OutlineInputBorder()),
               items: AppLocales.supported
                   .map(
                     (locale) => DropdownMenuItem(
@@ -640,10 +819,7 @@ class _ProfilePlaceholderView extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(
-          l10n.profilePlaceholder,
-          textAlign: TextAlign.center,
-        ),
+        child: Text(l10n.profilePlaceholder, textAlign: TextAlign.center),
       ),
     );
   }

@@ -23,6 +23,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _usernameController = TextEditingController();
   bool _isLogin = true;
   bool _rememberMe = false;
   bool _obscurePassword = true;
@@ -50,6 +51,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -59,15 +61,23 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     }
 
     FocusScope.of(context).unfocus();
-    final email = _emailController.text.trim();
+    final identifierOrEmail = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     final authController = ref.read(authControllerProvider.notifier);
 
     if (_isLogin) {
-      await authController.signIn(email: email, password: password);
+      await authController.signIn(
+        identifier: identifierOrEmail,
+        password: password,
+      );
     } else {
-      await authController.register(email: email, password: password);
+      final username = _usernameController.text.trim();
+      await authController.register(
+        email: identifierOrEmail,
+        password: password,
+        username: username,
+      );
     }
   }
 
@@ -141,23 +151,64 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                             children: [
                               TextFormField(
                                 controller: _emailController,
-                                autofillHints: const [AutofillHints.email],
+                                autofillHints: _isLogin
+                                    ? const [AutofillHints.username]
+                                    : const [AutofillHints.email],
                                 textInputAction: TextInputAction.next,
                                 enabled: !isLoading,
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: InputDecoration(
-                                  labelText: l10n.emailLabel,
-                                  prefixIcon: const Icon(Icons.email_outlined),
+                                  labelText: _isLogin
+                                      ? l10n.authIdentifierLabel
+                                      : l10n.emailLabel,
+                                  helperText: _isLogin
+                                      ? l10n.authIdentifierHelper
+                                      : null,
+                                  prefixIcon: const Icon(
+                                    Icons.alternate_email_rounded,
+                                  ),
                                 ),
                                 validator: (value) {
-                                  if (value == null ||
-                                      value.trim().isEmpty ||
-                                      !value.contains('@')) {
+                                  final trimmed = value?.trim() ?? '';
+                                  if (trimmed.isEmpty) {
+                                    return _isLogin
+                                        ? l10n.authIdentifierRequired
+                                        : l10n.invalidEmailError;
+                                  }
+                                  if (!_isLogin && !trimmed.contains('@')) {
                                     return l10n.invalidEmailError;
                                   }
                                   return null;
                                 },
                               ),
+                              if (!_isLogin) ...[
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _usernameController,
+                                  textInputAction: TextInputAction.next,
+                                  enabled: !isLoading,
+                                  decoration: InputDecoration(
+                                    labelText: l10n.usernameLabel,
+                                    helperText: l10n.usernameHelper,
+                                    prefixIcon: const Icon(
+                                      Icons.person_outline,
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    final trimmed = value?.trim() ?? '';
+                                    if (trimmed.isEmpty) {
+                                      return l10n.usernameRequiredError;
+                                    }
+                                    final isValid = RegExp(
+                                      r'^[A-Za-z0-9._-]{3,}$',
+                                    ).hasMatch(trimmed);
+                                    if (!isValid) {
+                                      return l10n.usernameInvalidError;
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _passwordController,
@@ -308,6 +359,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                 onPressed: () {
                                   setState(() {
                                     _isLogin = !_isLogin;
+                                    _confirmPasswordController.clear();
+                                    _usernameController.clear();
                                   });
                                 },
                                 child: Text(
