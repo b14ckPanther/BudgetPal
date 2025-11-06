@@ -12,6 +12,7 @@ class UserProfile {
     required this.preferredLocale,
     required this.createdAt,
     required this.updatedAt,
+    this.photoUrl,
   });
 
   final String uid;
@@ -23,6 +24,7 @@ class UserProfile {
   final String preferredLocale;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String? photoUrl;
 
   ThemeMode get themeMode => _themeModeFromString(preferredThemeMode);
 
@@ -38,6 +40,7 @@ class UserProfile {
       'preferredLocale': preferredLocale,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      'photoUrl': photoUrl,
     };
   }
 
@@ -55,6 +58,7 @@ class UserProfile {
       preferredLocale: data['preferredLocale'] as String? ?? 'he',
       createdAt: _asDateTime(data['createdAt']),
       updatedAt: _asDateTime(data['updatedAt']),
+      photoUrl: data['photoUrl'] as String?,
     );
   }
 
@@ -67,6 +71,7 @@ class UserProfile {
     String? preferredLocale,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? photoUrl,
   }) {
     return UserProfile(
       uid: uid,
@@ -78,6 +83,7 @@ class UserProfile {
       preferredLocale: preferredLocale ?? this.preferredLocale,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 }

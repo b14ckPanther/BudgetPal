@@ -12,6 +12,8 @@ import '../../../core/formatters/app_currency_formatter.dart';
 import '../../../core/telemetry/analytics_service.dart';
 import '../../../core/widgets/app_error_view.dart';
 import '../../../core/widgets/app_progress_indicator.dart';
+import '../../../core/widgets/glass_backdrop.dart';
+import '../../../core/widgets/glass_panel.dart';
 import '../../categories/domain/budget_category.dart';
 import '../application/transactions_providers.dart';
 import '../data/transactions_ai_service.dart';
@@ -68,94 +70,69 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       for (final category in categories) category.id: category,
     };
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      extendBody: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
         children: [
-          _Header(
-            title: l10n.transactionsTitle,
-            subtitle: l10n.transactionsSubtitle,
-            onAdd: () => _openTransactionForm(),
-            onImportInvoice: categories.isEmpty ? null : _startInvoiceImport,
-            aiProcessing: _aiProcessing,
-          ),
-          const SizedBox(height: 16),
-          _FiltersRow(
-            searchController: _searchController,
-            filters: filters,
-            categories: categories,
-            onClear: () =>
-                ref.read(transactionFiltersProvider.notifier).clear(),
-            onCategorySelected: (value) => ref
-                .read(transactionFiltersProvider.notifier)
-                .setCategory(value),
-            onTypeSelected: (type) =>
-                ref.read(transactionFiltersProvider.notifier).setType(type),
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                ref.invalidate(transactionsStreamProvider);
-              },
-              child: transactionsAsync.when(
-                data: (transactions) {
-                  if (transactions.isEmpty) {
-                    return _EmptyTransactions(
-                      title: l10n.transactionsEmptyTitle,
-                      subtitle: l10n.transactionsEmptySubtitle,
-                      onAdd: _openTransactionForm,
-                    );
-                  }
-
-                  final grouped = _groupByDay(transactions);
-
-                  return ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: grouped.length,
-                    itemBuilder: (context, index) {
-                      final group = grouped[index];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: index == grouped.length - 1 ? 48 : 24,
-                        ),
-                        child: _TransactionDaySection(
-                          label: _labelForGroup(context, l10n, group.label),
-                          transactions: group.transactions,
-                          categoryResolver: categoryMap,
-                          onEdit: (transaction) => _openTransactionForm(
-                            initial: TransactionDraft.fromModel(transaction),
-                          ),
-                          onDelete: (transaction) =>
-                              _confirmDeleteTransaction(transaction, l10n),
-                          editLabel: l10n.transactionFormUpdate,
-                          deleteLabel: l10n.transactionFormDelete,
-                        ),
-                      );
+          const AnimatedGlassBackdrop(),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _TransactionsHeader(
+                    title: l10n.transactionsTitle,
+                    subtitle: l10n.transactionsSubtitle,
+                    onAdd: () {
+                      _openTransactionForm();
                     },
-                  );
-                },
-                loading: () => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    const SizedBox(height: 120),
-                    AppProgressIndicator(label: l10n.loadingLabel),
-                  ],
-                ),
-                error: (error, stackTrace) => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    AppErrorView(
-                      title: l10n.unknownError,
-                      message: l10n.genericLoadError,
-                      details: error.toString(),
-                      retryLabel: l10n.retryButtonLabel,
-                      onRetry: () => ref.invalidate(transactionsStreamProvider),
+                    onImportInvoice: categories.isEmpty
+                        ? null
+                        : () {
+                            _startInvoiceImport();
+                          },
+                    aiProcessing: _aiProcessing,
+                  ),
+                  const SizedBox(height: 20),
+                  _TransactionsFilters(
+                    searchController: _searchController,
+                    filters: filters,
+                    categories: categories,
+                    onClear: () =>
+                        ref.read(transactionFiltersProvider.notifier).clear(),
+                    onCategorySelected: (value) => ref
+                        .read(transactionFiltersProvider.notifier)
+                        .setCategory(value),
+                    onTypeSelected: (type) => ref
+                        .read(transactionFiltersProvider.notifier)
+                        .setType(type),
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: _TransactionsFeed(
+                      transactionsAsync: transactionsAsync,
+                      l10n: l10n,
+                      onRefresh: () async {
+                        ref.invalidate(transactionsStreamProvider);
+                      },
+                      onAdd: () {
+                        _openTransactionForm();
+                      },
+                      groupByDay: _groupByDay,
+                      labelResolver: (key) =>
+                          _labelForGroup(context, l10n, key),
+                      categoryResolver: categoryMap,
+                      onEdit: (transaction) => _openTransactionForm(
+                        initial: TransactionDraft.fromModel(transaction),
+                      ),
+                      onDelete: (transaction) =>
+                          _confirmDeleteTransaction(transaction, l10n),
                     ),
-                    const SizedBox(height: 120),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -347,19 +324,39 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       );
       if (!mounted) return;
 
-      await showModalBottomSheet<void>(
+      final selectedDraft = await showModalBottomSheet<TransactionDraft?>(
         context: context,
         isScrollControlled: true,
-        builder: (context) {
+        builder: (sheetContext) {
           return _AiSuggestionsSheet(
             suggestions: drafts,
-            onUseSuggestion: (draft) {
-              Navigator.of(context).pop();
-              _openTransactionForm(initial: draft);
+            onSuggestionTap: (draft) {
+              Navigator.of(sheetContext).pop(draft);
             },
           );
         },
       );
+      if (!mounted || selectedDraft == null) {
+        return;
+      }
+      if (selectedDraft.categoryId.isEmpty || selectedDraft.amount <= 0) {
+        await _openTransactionForm(initial: selectedDraft);
+        return;
+      }
+      final controller = ref.read(transactionsControllerProvider.notifier);
+      final success = await controller.create(selectedDraft);
+      if (!mounted) {
+        return;
+      }
+      if (success) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(content: Text(l10n.transactionsAiAppliedSuccess)),
+          );
+        return;
+      }
+      await _openTransactionForm(initial: selectedDraft);
     } catch (error) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context);
@@ -389,8 +386,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
+class _TransactionsHeader extends StatelessWidget {
+  const _TransactionsHeader({
     required this.title,
     required this.subtitle,
     required this.onAdd,
@@ -407,55 +404,66 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: theme.textTheme.headlineMedium),
-                  const SizedBox(height: 8),
-                  Text(subtitle, style: theme.textTheme.bodyLarge),
-                ],
-              ),
+    final l10n = AppLocalizations.of(context);
+
+    return GlassPanel(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(width: 16),
-            FilledButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add),
-              label: Text(AppLocalizations.of(context).transactionsAddButton),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            onPressed: aiProcessing ? null : onImportInvoice,
-            icon: aiProcessing
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.document_scanner_outlined),
-            label: Text(
-              aiProcessing
-                  ? AppLocalizations.of(context).transactionsAiProcessing
-                  : AppLocalizations.of(context).transactionsImportInvoice,
-            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
           ),
-        ),
-      ],
+          const SizedBox(height: 6),
+          Text(subtitle, style: theme.textTheme.bodyLarge),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add),
+                label: Text(l10n.transactionsAddButton),
+              ),
+              OutlinedButton.icon(
+                onPressed: aiProcessing ? null : onImportInvoice,
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: aiProcessing
+                      ? const SizedBox(
+                          key: ValueKey('transactions_ai_spinner'),
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(
+                          Icons.document_scanner_outlined,
+                          key: ValueKey('transactions_ai_icon'),
+                        ),
+                ),
+                label: Text(
+                  aiProcessing
+                      ? l10n.transactionsAiProcessing
+                      : l10n.transactionsImportInvoice,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _FiltersRow extends StatelessWidget {
-  const _FiltersRow({
+class _TransactionsFilters extends StatelessWidget {
+  const _TransactionsFilters({
     required this.searchController,
     required this.filters,
     required this.categories,
@@ -474,55 +482,73 @@ class _FiltersRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: searchController,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: l10n.transactionsSearchHint,
+    final selection = filters.type != null
+        ? {filters.type!}
+        : <TransactionType>{};
+
+    return GlassPanel(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    hintText: l10n.transactionsSearchHint,
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            TextButton(
-              onPressed: filters.hasFilters ? onClear : null,
-              child: Text(l10n.transactionsFilterReset),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
+              const SizedBox(width: 12),
+              TextButton.icon(
+                onPressed: filters.hasFilters ? onClear : null,
+                icon: const Icon(Icons.close_rounded),
+                label: Text(l10n.transactionsFilterReset),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SegmentedButton<TransactionType>(
                 segments: [
                   ButtonSegment(
                     value: TransactionType.expense,
                     label: Text(l10n.transactionTypeExpense),
+                    icon: const Icon(Icons.arrow_downward_rounded),
                   ),
                   ButtonSegment(
                     value: TransactionType.income,
                     label: Text(l10n.transactionTypeIncome),
+                    icon: const Icon(Icons.arrow_upward_rounded),
                   ),
                 ],
+                style: ButtonStyle(visualDensity: VisualDensity.compact),
                 emptySelectionAllowed: true,
-                selected: filters.type != null ? {filters.type!} : {},
-                onSelectionChanged: (selection) {
-                  onTypeSelected(selection.isEmpty ? null : selection.first);
+                selected: selection,
+                onSelectionChanged: (values) {
+                  onTypeSelected(values.isEmpty ? null : values.first);
                 },
               ),
-              const SizedBox(width: 16),
               SizedBox(
-                width: 220,
+                width: 240,
                 child: DropdownButtonFormField<String?>(
                   initialValue: filters.categoryId,
                   decoration: InputDecoration(
                     labelText: l10n.transactionFormCategoryLabel,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                   items: [
                     DropdownMenuItem<String?>(
@@ -541,8 +567,104 @@ class _FiltersRow extends StatelessWidget {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TransactionsFeed extends StatelessWidget {
+  const _TransactionsFeed({
+    required this.transactionsAsync,
+    required this.l10n,
+    required this.onRefresh,
+    required this.onAdd,
+    required this.groupByDay,
+    required this.labelResolver,
+    required this.categoryResolver,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final AsyncValue<List<TransactionModel>> transactionsAsync;
+  final AppLocalizations l10n;
+  final Future<void> Function() onRefresh;
+  final VoidCallback onAdd;
+  final List<_TransactionDayGroup> Function(List<TransactionModel>) groupByDay;
+  final String Function(String key) labelResolver;
+  final Map<String, BudgetCategory> categoryResolver;
+  final ValueChanged<TransactionModel> onEdit;
+  final ValueChanged<TransactionModel> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassPanel(
+      padding: EdgeInsets.zero,
+      child: RefreshIndicator(
+        onRefresh: onRefresh,
+        child: transactionsAsync.when(
+          data: (transactions) {
+            if (transactions.isEmpty) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                children: [
+                  _EmptyTransactions(
+                    title: l10n.transactionsEmptyTitle,
+                    subtitle: l10n.transactionsEmptySubtitle,
+                    onAdd: onAdd,
+                  ),
+                ],
+              );
+            }
+
+            final grouped = groupByDay(transactions);
+
+            return ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+              itemCount: grouped.length,
+              itemBuilder: (context, index) {
+                final group = grouped[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == grouped.length - 1 ? 12 : 24,
+                  ),
+                  child: _TransactionDaySection(
+                    label: labelResolver(group.label),
+                    transactions: group.transactions,
+                    categoryResolver: categoryResolver,
+                    onEdit: onEdit,
+                    onDelete: onDelete,
+                    editLabel: l10n.transactionFormUpdate,
+                    deleteLabel: l10n.transactionFormDelete,
+                  ),
+                );
+              },
+            );
+          },
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 120, 24, 120),
+            children: [
+              Center(child: AppProgressIndicator(label: l10n.loadingLabel)),
+            ],
+          ),
+          error: (error, stackTrace) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
+            children: [
+              AppErrorView(
+                title: l10n.unknownError,
+                message: l10n.genericLoadError,
+                details: error.toString(),
+                retryLabel: l10n.retryButtonLabel,
+                onRetry: () => onRefresh(),
+              ),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -574,7 +696,13 @@ class _EmptyTransactions extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, style: theme.textTheme.titleLarge),
+                    Text(
+                      title,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: 320,
@@ -662,11 +790,11 @@ class _TransactionDaySection extends StatelessWidget {
 class _AiSuggestionsSheet extends StatelessWidget {
   const _AiSuggestionsSheet({
     required this.suggestions,
-    required this.onUseSuggestion,
+    required this.onSuggestionTap,
   });
 
   final List<TransactionDraft> suggestions;
-  final ValueChanged<TransactionDraft> onUseSuggestion;
+  final ValueChanged<TransactionDraft> onSuggestionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -707,40 +835,45 @@ class _AiSuggestionsSheet extends StatelessWidget {
                     locale: locale,
                   );
                   return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            formattedAmount,
-                            style: theme.textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          if (suggestion.merchant != null)
+                    child: InkWell(
+                      onTap: () => onSuggestionTap(suggestion),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              suggestion.merchant!,
-                              style: theme.textTheme.bodyMedium,
+                              formattedAmount,
+                              style: theme.textTheme.titleMedium,
                             ),
-                          if (suggestion.note != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
+                            const SizedBox(height: 8),
+                            if (suggestion.merchant != null)
+                              Text(
+                                suggestion.merchant!,
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                            if (suggestion.note != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  suggestion.note!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
                               child: Text(
-                                suggestion.note!,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                l10n.transactionsAiResultApply,
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.primary,
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 12),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: FilledButton(
-                              onPressed: () => onUseSuggestion(suggestion),
-                              child: Text(l10n.transactionsAiResultApply),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   );

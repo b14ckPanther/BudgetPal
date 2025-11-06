@@ -1,7 +1,11 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/user_profile_provider.dart';
 import '../../auth/data/user_profile_repository.dart';
+import '../../../core/firebase/firebase_providers.dart';
 
 final profileControllerProvider =
     StateNotifierProvider<ProfileController, AsyncValue<void>>((ref) {
@@ -68,6 +72,44 @@ class ProfileController extends StateNotifier<AsyncValue<void>> {
         await repository.releaseUsername(normalized);
         rethrow;
       }
+    });
+  }
+
+  Future<void> updateProfilePhoto({required File file}) async {
+    final uid = ref.read(authUserProvider)?.uid;
+    if (uid == null) {
+      return;
+    }
+    final storage = ref.read(firebaseStorageProvider);
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final avatarRef = storage.ref('users/$uid/avatar.jpg');
+      await avatarRef.putFile(
+        file,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      final url = await avatarRef.getDownloadURL();
+      await repository.updatePhotoUrl(uid: uid, photoUrl: url);
+    });
+  }
+
+  Future<void> removeProfilePhoto() async {
+    final uid = ref.read(authUserProvider)?.uid;
+    if (uid == null) {
+      return;
+    }
+    final storage = ref.read(firebaseStorageProvider);
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final avatarRef = storage.ref('users/$uid/avatar.jpg');
+      try {
+        await avatarRef.delete();
+      } on FirebaseException catch (error) {
+        if (error.code != 'object-not-found') {
+          rethrow;
+        }
+      }
+      await repository.updatePhotoUrl(uid: uid, photoUrl: null);
     });
   }
 }

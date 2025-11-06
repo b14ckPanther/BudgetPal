@@ -10,6 +10,8 @@ import '../../../core/app_settings/app_settings_state.dart';
 import '../application/auth_controller.dart';
 import '../data/auth_local_storage.dart';
 import '../utils/auth_error_translator.dart';
+import '../../../core/widgets/glass_backdrop.dart';
+import '../../../core/widgets/glass_panel.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
@@ -111,225 +113,251 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     final isLoading = authState.isLoading;
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
-                  ),
+      body: Stack(
+        children: [
+          const AnimatedGlassBackdrop(),
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
                   child: AutofillGroup(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _HeaderSection(
-                          onThemeToggle: appSettings.toggleThemeMode,
-                          currentLocale: settings.locale,
-                          onLocaleChanged: appSettings.updateLocale,
+                        GlassPanel(
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                          child: _HeaderSection(
+                            onThemeToggle: appSettings.toggleThemeMode,
+                            currentLocale: settings.locale,
+                            onLocaleChanged: appSettings.updateLocale,
+                          ),
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          _isLogin ? l10n.authWelcome : l10n.authRegisterTitle,
-                          style: Theme.of(context).textTheme.headlineMedium,
-                          textAlign: TextAlign.start,
-                        ),
-                        const SizedBox(height: 24),
-                        Form(
-                          key: _formKey,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                        const SizedBox(height: 20),
+                        GlassPanel(
+                          padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              TextFormField(
-                                controller: _emailController,
-                                autofillHints: _isLogin
-                                    ? const [AutofillHints.username]
-                                    : const [AutofillHints.email],
-                                textInputAction: TextInputAction.next,
-                                enabled: !isLoading,
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: InputDecoration(
-                                  labelText: _isLogin
-                                      ? l10n.authIdentifierLabel
-                                      : l10n.emailLabel,
-                                  helperText: _isLogin
-                                      ? l10n.authIdentifierHelper
-                                      : null,
-                                  prefixIcon: const Icon(
-                                    Icons.alternate_email_rounded,
-                                  ),
-                                ),
-                                validator: (value) {
-                                  final trimmed = value?.trim() ?? '';
-                                  if (trimmed.isEmpty) {
-                                    return _isLogin
-                                        ? l10n.authIdentifierRequired
-                                        : l10n.invalidEmailError;
-                                  }
-                                  if (!_isLogin && !trimmed.contains('@')) {
-                                    return l10n.invalidEmailError;
-                                  }
-                                  return null;
-                                },
+                              Text(
+                                _isLogin
+                                    ? l10n.authWelcome
+                                    : l10n.authRegisterTitle,
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                               ),
-                              if (!_isLogin) ...[
-                                const SizedBox(height: 16),
-                                TextFormField(
-                                  controller: _usernameController,
-                                  textInputAction: TextInputAction.next,
-                                  enabled: !isLoading,
-                                  decoration: InputDecoration(
-                                    labelText: l10n.usernameLabel,
-                                    helperText: l10n.usernameHelper,
-                                    prefixIcon: const Icon(
-                                      Icons.person_outline,
-                                    ),
-                                  ),
-                                  validator: (value) {
-                                    final trimmed = value?.trim() ?? '';
-                                    if (trimmed.isEmpty) {
-                                      return l10n.usernameRequiredError;
-                                    }
-                                    final isValid = RegExp(
-                                      r'^[A-Za-z0-9._-]{3,}$',
-                                    ).hasMatch(trimmed);
-                                    if (!isValid) {
-                                      return l10n.usernameInvalidError;
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _passwordController,
-                                autofillHints: const [AutofillHints.password],
-                                enabled: !isLoading,
-                                obscureText: _obscurePassword,
-                                textInputAction: _isLogin
-                                    ? TextInputAction.done
-                                    : TextInputAction.next,
-                                onFieldSubmitted: (_) {
-                                  if (_isLogin) {
-                                    _submit();
-                                  }
-                                },
-                                decoration: InputDecoration(
-                                  labelText: l10n.passwordLabel,
-                                  prefixIcon: const Icon(Icons.lock_outline),
-                                  suffixIcon: IconButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                                    tooltip: _obscurePassword
-                                        ? l10n.passwordToggleShow
-                                        : l10n.passwordToggleHide,
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off
-                                          : Icons.visibility,
-                                    ),
-                                  ),
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.length < 6) {
-                                    return l10n.passwordTooShortError;
-                                  }
-                                  return null;
-                                },
-                              ),
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 200),
-                                child: _isLogin
-                                    ? const SizedBox.shrink()
-                                    : Padding(
-                                        padding: const EdgeInsets.only(top: 16),
-                                        child: TextFormField(
-                                          key: const ValueKey(
-                                            'confirmPassword',
-                                          ),
-                                          controller:
-                                              _confirmPasswordController,
-                                          autofillHints: const [
-                                            AutofillHints.newPassword,
-                                          ],
-                                          enabled: !isLoading,
-                                          obscureText: _obscureConfirmPassword,
-                                          textInputAction: TextInputAction.done,
-                                          onFieldSubmitted: (_) => _submit(),
-                                          decoration: InputDecoration(
-                                            labelText:
-                                                l10n.confirmPasswordLabel,
-                                            prefixIcon: const Icon(
-                                              Icons.lock_person_outlined,
-                                            ),
-                                            suffixIcon: IconButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  _obscureConfirmPassword =
-                                                      !_obscureConfirmPassword;
-                                                });
-                                              },
-                                              tooltip: _obscureConfirmPassword
-                                                  ? l10n.passwordToggleShow
-                                                  : l10n.passwordToggleHide,
-                                              icon: Icon(
-                                                _obscureConfirmPassword
-                                                    ? Icons.visibility_off
-                                                    : Icons.visibility,
-                                              ),
-                                            ),
-                                          ),
-                                          validator: (value) {
-                                            if (value !=
-                                                _passwordController.text) {
-                                              return l10n.passwordMismatchError;
-                                            }
-                                            return null;
-                                          },
+                              const SizedBox(height: 24),
+                              Form(
+                                key: _formKey,
+                                autovalidateMode:
+                                    AutovalidateMode.onUserInteraction,
+                                child: Column(
+                                  children: [
+                                    TextFormField(
+                                      controller: _emailController,
+                                      autofillHints: _isLogin
+                                          ? const [AutofillHints.username]
+                                          : const [AutofillHints.email],
+                                      textInputAction: TextInputAction.next,
+                                      enabled: !isLoading,
+                                      keyboardType: TextInputType.emailAddress,
+                                      decoration: InputDecoration(
+                                        labelText: _isLogin
+                                            ? l10n.authIdentifierLabel
+                                            : l10n.emailLabel,
+                                        helperText: _isLogin
+                                            ? l10n.authIdentifierHelper
+                                            : null,
+                                        prefixIcon: const Icon(
+                                          Icons.alternate_email_rounded,
                                         ),
                                       ),
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: isLoading
-                                        ? null
-                                        : (value) {
+                                      validator: (value) {
+                                        final trimmed = value?.trim() ?? '';
+                                        if (trimmed.isEmpty) {
+                                          return _isLogin
+                                              ? l10n.authIdentifierRequired
+                                              : l10n.invalidEmailError;
+                                        }
+                                        if (!_isLogin &&
+                                            !trimmed.contains('@')) {
+                                          return l10n.invalidEmailError;
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                    if (!_isLogin) ...[
+                                      const SizedBox(height: 16),
+                                      TextFormField(
+                                        controller: _usernameController,
+                                        textInputAction: TextInputAction.next,
+                                        enabled: !isLoading,
+                                        decoration: InputDecoration(
+                                          labelText: l10n.usernameLabel,
+                                          helperText: l10n.usernameHelper,
+                                          prefixIcon: const Icon(
+                                            Icons.person_outline,
+                                          ),
+                                        ),
+                                        validator: (value) {
+                                          final trimmed = value?.trim() ?? '';
+                                          if (trimmed.isEmpty) {
+                                            return l10n.usernameRequiredError;
+                                          }
+                                          final isValid = RegExp(
+                                            r'^[A-Za-z0-9._-]{3,}$',
+                                          ).hasMatch(trimmed);
+                                          if (!isValid) {
+                                            return l10n.usernameInvalidError;
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ],
+                                    const SizedBox(height: 16),
+                                    TextFormField(
+                                      controller: _passwordController,
+                                      autofillHints: const [
+                                        AutofillHints.password,
+                                      ],
+                                      enabled: !isLoading,
+                                      obscureText: _obscurePassword,
+                                      textInputAction: _isLogin
+                                          ? TextInputAction.done
+                                          : TextInputAction.next,
+                                      onFieldSubmitted: (_) {
+                                        if (_isLogin) {
+                                          _submit();
+                                        }
+                                      },
+                                      decoration: InputDecoration(
+                                        labelText: l10n.passwordLabel,
+                                        prefixIcon: const Icon(
+                                          Icons.lock_outline,
+                                        ),
+                                        suffixIcon: IconButton(
+                                          onPressed: () {
                                             setState(() {
-                                              _rememberMe = value ?? false;
+                                              _obscurePassword =
+                                                  !_obscurePassword;
                                             });
                                           },
-                                  ),
-                                  Expanded(
-                                    child: Text(
-                                      l10n.rememberMeLabel,
-                                      maxLines: 2,
+                                          tooltip: _obscurePassword
+                                              ? l10n.passwordToggleShow
+                                              : l10n.passwordToggleHide,
+                                          icon: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                          ),
+                                        ),
+                                      ),
+                                      validator: (value) {
+                                        if (value == null || value.length < 6) {
+                                          return l10n.passwordTooShortError;
+                                        }
+                                        return null;
+                                      },
                                     ),
-                                  ),
-                                  if (_isLogin) ...[
-                                    const SizedBox(width: 12),
-                                    TextButton(
-                                      onPressed: isLoading
-                                          ? null
-                                          : () => _showResetDialog(l10n),
-                                      child: Text(l10n.forgotPasswordLink),
+                                    AnimatedSwitcher(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      child: _isLogin
+                                          ? const SizedBox.shrink()
+                                          : Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 16,
+                                              ),
+                                              child: TextFormField(
+                                                key: const ValueKey(
+                                                  'confirmPassword',
+                                                ),
+                                                controller:
+                                                    _confirmPasswordController,
+                                                autofillHints: const [
+                                                  AutofillHints.newPassword,
+                                                ],
+                                                enabled: !isLoading,
+                                                obscureText:
+                                                    _obscureConfirmPassword,
+                                                textInputAction:
+                                                    TextInputAction.done,
+                                                onFieldSubmitted: (_) =>
+                                                    _submit(),
+                                                decoration: InputDecoration(
+                                                  labelText:
+                                                      l10n.confirmPasswordLabel,
+                                                  prefixIcon: const Icon(
+                                                    Icons.lock_person_outlined,
+                                                  ),
+                                                  suffixIcon: IconButton(
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        _obscureConfirmPassword =
+                                                            !_obscureConfirmPassword;
+                                                      });
+                                                    },
+                                                    tooltip:
+                                                        _obscureConfirmPassword
+                                                        ? l10n.passwordToggleShow
+                                                        : l10n.passwordToggleHide,
+                                                    icon: Icon(
+                                                      _obscureConfirmPassword
+                                                          ? Icons.visibility_off
+                                                          : Icons.visibility,
+                                                    ),
+                                                  ),
+                                                ),
+                                                validator: (value) {
+                                                  if (value !=
+                                                      _passwordController
+                                                          .text) {
+                                                    return l10n
+                                                        .passwordMismatchError;
+                                                  }
+                                                  return null;
+                                                },
+                                              ),
+                                            ),
                                     ),
-                                  ],
-                                ],
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Checkbox(
+                                          value: _rememberMe,
+                                          onChanged: isLoading
+                                              ? null
+                                              : (value) {
+                                                  setState(() {
+                                                    _rememberMe =
+                                                        value ?? false;
+                                                  });
+                                                },
+                                        ),
+                                        Expanded(
+                                          child: Text(
+                                            l10n.rememberMeLabel,
+                                            maxLines: 2,
+                                          ),
+                                        ),
+                                        if (_isLogin) ...[
+                                          const SizedBox(width: 12),
+                                          TextButton(
+                                            onPressed: isLoading
+                                                ? null
+                                                : () => _showResetDialog(l10n),
+                                            child: Text(
+                                              l10n.forgotPasswordLink,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ], // <--- This was missing in your original code and caused the errors!
+                                ),
                               ),
                               const SizedBox(height: 16),
                               SizedBox(
@@ -379,7 +407,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -516,11 +544,11 @@ class _HeaderSection extends ConsumerWidget {
   String _localeDisplayName(Locale locale) {
     switch (locale.languageCode) {
       case 'he':
-        return 'עברית';
+        return 'ע';
       case 'ar':
-        return 'العربية';
+        return 'ع';
       default:
-        return 'English';
+        return 'EN';
     }
   }
 }

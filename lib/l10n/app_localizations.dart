@@ -592,6 +592,12 @@ abstract class AppLocalizations {
   /// **'Use suggestion'**
   String get transactionsAiResultApply;
 
+  /// No description provided for @transactionsAiAppliedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Transaction added from AI suggestion.'**
+  String get transactionsAiAppliedSuccess;
+
   /// No description provided for @budgetTitle.
   ///
   /// In en, this message translates to:

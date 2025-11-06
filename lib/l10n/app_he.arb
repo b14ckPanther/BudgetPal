@@ -82,6 +82,7 @@
   "transactionsAiResultTitle": "הצעות מהבינה",
   "transactionsAiNoResults": "לא נמצאו פריטים בחשבונית. נסו צילום ברור יותר.",
   "transactionsAiResultApply": "השתמש בהצעה",
+  "transactionsAiAppliedSuccess": "העסקה נוספה מהמלצת ה-AI.",
   "budgetTitle": "מעטפות תקציב",
   "budgetSubtitle": "הקצו כל שקל ועקבו אחר הסכומים שנותרו בכל קטגוריה.",
   "budgetPlaceholder": "מעטפות התקציב יופיעו כאן בקרוב.",

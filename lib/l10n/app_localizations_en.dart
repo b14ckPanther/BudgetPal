@@ -268,6 +268,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get transactionsAiResultApply => 'Use suggestion';
 
   @override
+  String get transactionsAiAppliedSuccess =>
+      'Transaction added from AI suggestion.';
+
+  @override
   String get budgetTitle => 'Budget Envelopes';
 
   @override

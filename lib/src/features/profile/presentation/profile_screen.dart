@@ -1,16 +1,30 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:budgetpal/l10n/app_localizations.dart';
 
 import '../../../core/app_settings/app_settings_controller.dart';
 import '../../../core/app_settings/app_settings_state.dart';
 import '../../../core/widgets/app_progress_indicator.dart';
+import '../../../core/widgets/glass_backdrop.dart';
+import '../../../core/widgets/glass_panel.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/user_profile_provider.dart';
 import '../../auth/domain/user_profile.dart';
 import '../../auth/utils/auth_error_translator.dart';
 import '../application/profile_controller.dart';
+
+String _shortText(String text, {int maxWords = 4}) {
+  final words = text
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty);
+  final truncated = words.take(maxWords).join(' ');
+  return truncated.isEmpty ? text : truncated;
+}
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -19,7 +33,9 @@ class ProfileScreen extends ConsumerStatefulWidget {
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-enum _ProfilePendingOperation { none, financial, username }
+enum _ProfilePendingOperation { none, financial, username, avatar }
+
+enum _AvatarAction { gallery, camera, remove }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -33,6 +49,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isDirty = false;
   bool _isUsernameDirty = false;
   bool _isSendingReset = false;
+  bool _isUploadingAvatar = false;
   _ProfilePendingOperation _pendingOperation = _ProfilePendingOperation.none;
 
   @override
@@ -63,13 +80,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       next.when(
         data: (_) {
           if (previous?.isLoading == true && mounted) {
-            ScaffoldMessenger.of(context)
-              ..clearSnackBars()
-              ..showSnackBar(
-                SnackBar(content: Text(l10n.profileUpdateSuccess)),
-              );
+            final operation = _pendingOperation;
+            if (operation != _ProfilePendingOperation.avatar) {
+              ScaffoldMessenger.of(context)
+                ..clearSnackBars()
+                ..showSnackBar(
+                  SnackBar(content: Text(l10n.profileUpdateSuccess)),
+                );
+            }
             setState(() {
-              final operation = _pendingOperation;
               if (operation == _ProfilePendingOperation.financial ||
                   operation == _ProfilePendingOperation.none) {
                 _isDirty = false;
@@ -77,6 +96,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (operation == _ProfilePendingOperation.username ||
                   operation == _ProfilePendingOperation.none) {
                 _isUsernameDirty = false;
+              }
+              if (operation == _ProfilePendingOperation.avatar ||
+                  operation == _ProfilePendingOperation.none) {
+                _isUploadingAvatar = false;
               }
               _pendingOperation = _ProfilePendingOperation.none;
             });
@@ -91,6 +114,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ..showSnackBar(SnackBar(content: Text(mapAuthError(l10n, error))));
           setState(() {
             _pendingOperation = _ProfilePendingOperation.none;
+            _isUploadingAvatar = false;
           });
         },
         loading: () {},
@@ -141,6 +165,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           usernameFormKey: _usernameFormKey,
           usernameHelper: l10n.usernameHelper,
           overdraftHelper: l10n.profileOverdraftHelper,
+          isAvatarUploading:
+              _isUploadingAvatar ||
+              (profileUpdateState.isLoading &&
+                  _pendingOperation == _ProfilePendingOperation.avatar),
+          onAvatarTap: () => _showAvatarOptions(l10n),
         );
       },
       loading: () => AppProgressIndicator(label: l10n.loadingLabel),
@@ -343,6 +372,107 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
+  Future<void> _showAvatarOptions(AppLocalizations l10n) async {
+    if (_isUploadingAvatar) {
+      return;
+    }
+    final action = await showModalBottomSheet<_AvatarAction>(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: Text(l10n.transactionsImportGallery),
+                onTap: () => Navigator.of(context).pop(_AvatarAction.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: Text(l10n.transactionsImportCamera),
+                onTap: () => Navigator.of(context).pop(_AvatarAction.camera),
+              ),
+              if ((_serverProfile?.photoUrl ?? '').isNotEmpty)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text(l10n.profileFormReset),
+                  onTap: () => Navigator.of(context).pop(_AvatarAction.remove),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (action == null) {
+      return;
+    }
+
+    switch (action) {
+      case _AvatarAction.gallery:
+        await _pickAvatar(ImageSource.gallery, l10n);
+        break;
+      case _AvatarAction.camera:
+        await _pickAvatar(ImageSource.camera, l10n);
+        break;
+      case _AvatarAction.remove:
+        await _removeAvatar(l10n);
+        break;
+    }
+  }
+
+  Future<void> _pickAvatar(ImageSource source, AppLocalizations l10n) async {
+    final picker = ImagePicker();
+    try {
+      final result = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1024,
+      );
+      if (result == null) {
+        return;
+      }
+      final file = File(result.path);
+      setState(() {
+        _pendingOperation = _ProfilePendingOperation.avatar;
+        _isUploadingAvatar = true;
+      });
+      await ref
+          .read(profileControllerProvider.notifier)
+          .updateProfilePhoto(file: file);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isUploadingAvatar = false;
+        _pendingOperation = _ProfilePendingOperation.none;
+      });
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _removeAvatar(AppLocalizations l10n) async {
+    setState(() {
+      _pendingOperation = _ProfilePendingOperation.avatar;
+      _isUploadingAvatar = true;
+    });
+    try {
+      await ref.read(profileControllerProvider.notifier).removeProfilePhoto();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isUploadingAvatar = false;
+        _pendingOperation = _ProfilePendingOperation.none;
+      });
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   String _localeDisplayName(Locale locale) {
     switch (locale.languageCode) {
       case 'he':
@@ -384,6 +514,8 @@ class _ProfileContent extends StatelessWidget {
     required this.localeLabelBuilder,
     required this.usernameHelper,
     required this.overdraftHelper,
+    required this.isAvatarUploading,
+    required this.onAvatarTap,
   });
 
   final AppLocalizations l10n;
@@ -413,57 +545,272 @@ class _ProfileContent extends StatelessWidget {
   final String Function(Locale locale) localeLabelBuilder;
   final String usernameHelper;
   final String overdraftHelper;
+  final bool isAvatarUploading;
+  final Future<void> Function() onAvatarTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      extendBody: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          const AnimatedGlassBackdrop(),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ProfileHeader(
+                    l10n: l10n,
+                    profile: profile,
+                    isBusy: isAuthBusy,
+                    isAvatarBusy: isAvatarUploading,
+                    onAvatarTap: onAvatarTap,
+                    onPasswordReset: onPasswordReset,
+                    onSignOut: onSignOut,
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: ListView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 32),
+                      children: [
+                        _AccountSection(
+                          l10n: l10n,
+                          profile: profile,
+                          isUsernameSaving: isUsernameSaving,
+                          usernameFormKey: usernameFormKey,
+                          usernameController: usernameController,
+                          isUsernameDirty: isUsernameDirty,
+                          onUsernameChanged: onUsernameChanged,
+                          onUsernameSave: onUsernameSave,
+                          onUsernameReset: onUsernameReset,
+                          usernameHelper: usernameHelper,
+                        ),
+                        const SizedBox(height: 20),
+                        _FinancialSection(
+                          l10n: l10n,
+                          formKey: formKey,
+                          balanceController: balanceController,
+                          overdraftController: overdraftController,
+                          isDirty: isDirty,
+                          isSaving: isFinancialSaving,
+                          onBalanceChanged: onBalanceChanged,
+                          onOverdraftChanged: onOverdraftChanged,
+                          onSave: onSave,
+                          onReset: onReset,
+                          overdraftHelper: overdraftHelper,
+                        ),
+                        const SizedBox(height: 20),
+                        _PreferencesSection(
+                          l10n: l10n,
+                          settings: settings,
+                          onThemeChanged: onThemeChanged,
+                          onLocaleChanged: onLocaleChanged,
+                          localeLabelBuilder: localeLabelBuilder,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
+    required this.l10n,
+    required this.profile,
+    required this.isBusy,
+    required this.isAvatarBusy,
+    required this.onAvatarTap,
+    required this.onPasswordReset,
+    required this.onSignOut,
+  });
+
+  final AppLocalizations l10n;
+  final UserProfile profile;
+  final bool isBusy;
+  final bool isAvatarBusy;
+  final Future<void> Function() onAvatarTap;
+  final VoidCallback onPasswordReset;
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    final displayName = profile.username.trim().isEmpty
+        ? profile.email.split('@').first
+        : profile.username.trim();
+    final initialsSource = profile.username.trim().isNotEmpty
+        ? profile.username
+        : profile.email;
+    final initials = initialsSource.trim().isNotEmpty
+        ? initialsSource.trim()[0].toUpperCase()
+        : '?';
+    final photoUrl = profile.photoUrl ?? '';
+    final hasPhoto = photoUrl.isNotEmpty;
+    final subtitle = _shortText(l10n.profileSubtitle);
+
+    return GlassPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.profileTitle, style: theme.textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          Text(l10n.profileSubtitle, style: theme.textTheme.bodyLarge),
-          const SizedBox(height: 24),
-          _AccountSection(
-            l10n: l10n,
-            profile: profile,
-            isBusy: isAuthBusy,
-            isUsernameSaving: isUsernameSaving,
-            usernameFormKey: usernameFormKey,
-            usernameController: usernameController,
-            isUsernameDirty: isUsernameDirty,
-            onPasswordReset: onPasswordReset,
-            onSignOut: onSignOut,
-            onUsernameChanged: onUsernameChanged,
-            onUsernameSave: onUsernameSave,
-            onUsernameReset: onUsernameReset,
-            usernameHelper: usernameHelper,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: isBusy || isAvatarBusy
+                    ? null
+                    : () {
+                        onAvatarTap();
+                      },
+                child: Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      color: Colors.transparent,
+                      child: ClipOval(
+                        child: isAvatarBusy
+                            ? Container(
+                                color: colorScheme.surface.withValues(
+                                  alpha: isDark ? 0.4 : 0.2,
+                                ),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : hasPhoto
+                            ? Image.network(
+                                photoUrl,
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _InitialAvatar(
+                                  initials: initials,
+                                  colorScheme: colorScheme,
+                                  isDark: isDark,
+                                  theme: theme,
+                                ),
+                              )
+                            : _InitialAvatar(
+                                initials: initials,
+                                colorScheme: colorScheme,
+                                isDark: isDark,
+                                theme: theme,
+                              ),
+                      ),
+                    ),
+                    if (!isAvatarBusy)
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(color: colorScheme.primary),
+                        child: const Icon(
+                          Icons.camera_alt_outlined,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    SelectableText(
+                      profile.email,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(subtitle, style: theme.textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          _FinancialSection(
-            l10n: l10n,
-            formKey: formKey,
-            balanceController: balanceController,
-            overdraftController: overdraftController,
-            isDirty: isDirty,
-            isSaving: isFinancialSaving,
-            onBalanceChanged: onBalanceChanged,
-            onOverdraftChanged: onOverdraftChanged,
-            onSave: onSave,
-            onReset: onReset,
-            overdraftHelper: overdraftHelper,
-          ),
-          const SizedBox(height: 24),
-          _PreferencesSection(
-            l10n: l10n,
-            settings: settings,
-            onThemeChanged: onThemeChanged,
-            onLocaleChanged: onLocaleChanged,
-            localeLabelBuilder: localeLabelBuilder,
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                onPressed: isBusy ? null : onPasswordReset,
+                icon: const Icon(Icons.lock_reset),
+                label: Text(l10n.profileResetPasswordButton),
+              ),
+              OutlinedButton.icon(
+                onPressed: isBusy ? null : onSignOut,
+                icon: const Icon(Icons.logout),
+                label: Text(l10n.logoutButton),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _InitialAvatar extends StatelessWidget {
+  const _InitialAvatar({
+    required this.initials,
+    required this.colorScheme,
+    required this.isDark,
+    required this.theme,
+  });
+
+  final String initials;
+  final ColorScheme colorScheme;
+  final bool isDark;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: colorScheme.primary.withValues(alpha: isDark ? 0.35 : 0.2),
+      child: Center(
+        child: Text(
+          initials,
+          style: theme.textTheme.headlineSmall?.copyWith(
+            color: colorScheme.onPrimary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -473,7 +820,6 @@ class _AccountSection extends StatelessWidget {
   const _AccountSection({
     required this.l10n,
     required this.profile,
-    required this.isBusy,
     required this.isUsernameSaving,
     required this.usernameFormKey,
     required this.usernameController,
@@ -482,13 +828,10 @@ class _AccountSection extends StatelessWidget {
     required this.onUsernameSave,
     required this.onUsernameReset,
     required this.usernameHelper,
-    required this.onPasswordReset,
-    required this.onSignOut,
   });
 
   final AppLocalizations l10n;
   final UserProfile profile;
-  final bool isBusy;
   final bool isUsernameSaving;
   final GlobalKey<FormState> usernameFormKey;
   final TextEditingController usernameController;
@@ -497,109 +840,91 @@ class _AccountSection extends StatelessWidget {
   final VoidCallback onUsernameSave;
   final VoidCallback onUsernameReset;
   final String usernameHelper;
-  final VoidCallback onPasswordReset;
-  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.profileAccountSectionTitle,
-              style: theme.textTheme.titleMedium,
+    final helper = _shortText(usernameHelper);
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.profileAccountSectionTitle,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 12),
-            Text(
-              l10n.profileAccountEmailLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l10n.profileAccountEmailLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 4),
-            SelectableText(profile.email, style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 16),
-            Form(
-              key: usernameFormKey,
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: usernameController,
-                    enabled: !isBusy && !isUsernameSaving,
-                    decoration: InputDecoration(
-                      labelText: l10n.usernameLabel,
-                      helperText: usernameHelper,
-                      prefixIcon: const Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      final trimmed = value?.trim() ?? '';
-                      if (trimmed.isEmpty) {
-                        return l10n.usernameRequiredError;
-                      }
-                      final isValid = RegExp(
-                        r'^[A-Za-z0-9._-]{3,}$',
-                      ).hasMatch(trimmed);
-                      if (!isValid) {
-                        return l10n.usernameInvalidError;
-                      }
-                      return null;
-                    },
-                    onChanged: onUsernameChanged,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      FilledButton(
-                        onPressed:
-                            (!isUsernameDirty || isBusy || isUsernameSaving)
-                            ? null
-                            : onUsernameSave,
-                        child: Text(l10n.profileFormSave),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton(
-                        onPressed:
-                            (!isUsernameDirty || isBusy || isUsernameSaving)
-                            ? null
-                            : onUsernameReset,
-                        child: Text(l10n.profileFormReset),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
+          ),
+          const SizedBox(height: 4),
+          SelectableText(profile.email, style: theme.textTheme.bodyLarge),
+          const SizedBox(height: 20),
+          Form(
+            key: usernameFormKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OutlinedButton.icon(
-                  onPressed: isBusy ? null : onPasswordReset,
-                  icon: isBusy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.mail_outline),
-                  label: Text(l10n.profileResetPasswordButton),
+                TextFormField(
+                  controller: usernameController,
+                  enabled: !isUsernameSaving,
+                  decoration: InputDecoration(
+                    labelText: l10n.usernameLabel,
+                    helperText: helper,
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  validator: (value) {
+                    final trimmed = value?.trim() ?? '';
+                    if (trimmed.isEmpty) {
+                      return l10n.usernameRequiredError;
+                    }
+                    final isValid = RegExp(
+                      r'^[A-Za-z0-9._-]{3,}$',
+                    ).hasMatch(trimmed);
+                    if (!isValid) {
+                      return l10n.usernameInvalidError;
+                    }
+                    return null;
+                  },
+                  onChanged: onUsernameChanged,
                 ),
-                FilledButton.icon(
-                  onPressed: isBusy ? null : onSignOut,
-                  icon: const Icon(Icons.logout),
-                  label: Text(l10n.logoutButton),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    FilledButton(
+                      onPressed: (!isUsernameDirty || isUsernameSaving)
+                          ? null
+                          : onUsernameSave,
+                      child: isUsernameSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Text(l10n.profileFormSave),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: (!isUsernameDirty || isUsernameSaving)
+                          ? null
+                          : onUsernameReset,
+                      child: Text(l10n.profileFormReset),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -635,86 +960,98 @@ class _FinancialSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.profileFinancialSectionTitle,
-                style: theme.textTheme.titleMedium,
+    final description = _shortText(l10n.profileFinancialSectionDescription);
+    final helper = _shortText(overdraftHelper);
+    return GlassPanel(
+      child: Form(
+        key: formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.profileFinancialSectionTitle,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.profileFinancialSectionDescription,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              description,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: balanceController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+              decoration: InputDecoration(
+                labelText: l10n.profileBankBalanceLabel,
+                prefixIcon: const Icon(Icons.account_balance_outlined),
+                prefixText: '₪ ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: balanceController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-                decoration: InputDecoration(
-                  labelText: l10n.profileBankBalanceLabel,
-                ),
-                onChanged: (_) => onBalanceChanged(),
-                validator: (value) {
-                  final parsed = double.tryParse((value ?? '').trim());
-                  if (parsed == null) {
-                    return l10n.profileBankBalanceInvalid;
-                  }
-                  return null;
-                },
+              onChanged: (_) => onBalanceChanged(),
+              validator: (value) {
+                final parsed = double.tryParse((value ?? '').trim());
+                if (parsed == null) {
+                  return l10n.profileBankBalanceInvalid;
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: overdraftController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: false,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: overdraftController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: false,
+              decoration: InputDecoration(
+                labelText: l10n.profileOverdraftLabel,
+                helperText: helper,
+                prefixIcon: const Icon(Icons.shield_outlined),
+                prefixText: '₪ ',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                decoration: InputDecoration(
-                  labelText: l10n.profileOverdraftLabel,
-                  helperText: overdraftHelper,
+              ),
+              onChanged: (_) => onOverdraftChanged(),
+              validator: (value) {
+                final parsed = double.tryParse((value ?? '').trim());
+                if (parsed == null || parsed < 0) {
+                  return l10n.profileOverdraftInvalid;
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: !isDirty || isSaving ? null : onReset,
+                  child: Text(l10n.profileFormReset),
                 ),
-                onChanged: (_) => onOverdraftChanged(),
-                validator: (value) {
-                  final parsed = double.tryParse((value ?? '').trim());
-                  if (parsed == null || parsed < 0) {
-                    return l10n.profileOverdraftInvalid;
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: !isDirty || isSaving ? null : onReset,
-                    child: Text(l10n.profileFormReset),
-                  ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: !isDirty || isSaving ? null : onSave,
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(l10n.profileFormSave),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: !isDirty || isSaving ? null : onSave,
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(l10n.profileFormSave),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -739,71 +1076,80 @@ class _PreferencesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.profilePreferencesSectionTitle,
-              style: theme.textTheme.titleMedium,
+    final themeLabel = _shortText(l10n.themeToggleLabel);
+    final localeLabel = _shortText(l10n.profileLocaleLabel);
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.profilePreferencesSectionTitle,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 16),
-            Text(
-              l10n.themeToggleLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            themeLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<ThemeMode>(
+            segments: [
+              ButtonSegment(
+                value: ThemeMode.light,
+                label: Text(l10n.profileThemeOptionLight),
+                icon: const Icon(Icons.light_mode_outlined),
               ),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<ThemeMode>(
-              segments: [
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text(l10n.profileThemeOptionLight),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text(l10n.profileThemeOptionDark),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text(l10n.profileThemeOptionSystem),
-                ),
-              ],
-              selected: {settings.themeMode},
-              onSelectionChanged: (selection) =>
-                  onThemeChanged(selection.first),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              l10n.profileLocaleLabel,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              ButtonSegment(
+                value: ThemeMode.dark,
+                label: Text(l10n.profileThemeOptionDark),
+                icon: const Icon(Icons.dark_mode_outlined),
               ),
+              ButtonSegment(
+                value: ThemeMode.system,
+                label: Text(l10n.profileThemeOptionSystem),
+                icon: const Icon(Icons.auto_mode_outlined),
+              ),
+            ],
+            style: ButtonStyle(visualDensity: VisualDensity.compact),
+            selected: {settings.themeMode},
+            onSelectionChanged: (selection) => onThemeChanged(selection.first),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            localeLabel,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Locale>(
-              key: ValueKey(settings.locale),
-              initialValue: settings.locale,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: AppLocales.supported
-                  .map(
-                    (locale) => DropdownMenuItem(
-                      value: locale,
-                      child: Text(localeLabelBuilder(locale)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (locale) {
-                if (locale != null) {
-                  onLocaleChanged(locale);
-                }
-              },
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<Locale>(
+            key: ValueKey(settings.locale),
+            initialValue: settings.locale,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              prefixIcon: const Icon(Icons.language),
             ),
-          ],
-        ),
+            items: AppLocales.supported
+                .map(
+                  (locale) => DropdownMenuItem(
+                    value: locale,
+                    child: Text(localeLabelBuilder(locale)),
+                  ),
+                )
+                .toList(),
+            onChanged: (locale) {
+              if (locale != null) {
+                onLocaleChanged(locale);
+              }
+            },
+          ),
+        ],
       ),
     );
   }

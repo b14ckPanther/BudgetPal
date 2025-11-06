@@ -268,6 +268,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get transactionsAiResultApply => 'استخدم الاقتراح';
 
   @override
+  String get transactionsAiAppliedSuccess => 'تمت إضافة المعاملة من الاقتراح.';
+
+  @override
   String get budgetTitle => 'أظرف الميزانية';
 
   @override

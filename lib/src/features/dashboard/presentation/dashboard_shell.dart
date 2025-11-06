@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:budgetpal/l10n/app_localizations.dart';
 
-import '../../../core/app_settings/app_settings_controller.dart';
-import '../../../core/app_settings/app_settings_state.dart';
 import '../../../core/telemetry/analytics_service.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../budget/presentation/budget_screen.dart';
@@ -42,8 +40,6 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final settings = ref.watch(appSettingsControllerProvider);
-    final appSettings = ref.read(appSettingsControllerProvider.notifier);
     final currentIndex = ref.watch(dashboardIndexProvider);
     final authOperation = ref.watch(authControllerProvider);
     final isAuthBusy = authOperation.isLoading;
@@ -58,9 +54,6 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
     return Scaffold(
       appBar: _DashboardAppBar(
         l10n: l10n,
-        settings: settings,
-        onLocaleChanged: appSettings.updateLocale,
-        onThemeToggle: appSettings.toggleThemeMode,
         onSignOut: () => _confirmSignOut(l10n),
         isBusy: isAuthBusy,
       ),
@@ -160,58 +153,19 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
 class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
   const _DashboardAppBar({
     required this.l10n,
-    required this.settings,
-    required this.onLocaleChanged,
-    required this.onThemeToggle,
     required this.onSignOut,
     required this.isBusy,
   });
 
   final AppLocalizations l10n;
-  final AppSettingsState settings;
-  final ValueChanged<Locale> onLocaleChanged;
-  final VoidCallback onThemeToggle;
   final Future<void> Function() onSignOut;
   final bool isBusy;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = settings.themeMode == ThemeMode.dark;
-    final localeItems = AppLocales.supported
-        .map(
-          (locale) => DropdownMenuItem(
-            value: locale,
-            child: Text(
-              _localeDisplayName(locale),
-              textDirection:
-                  _isRtlLocale(locale) ? TextDirection.rtl : TextDirection.ltr,
-            ),
-          ),
-        )
-        .toList();
-
     return AppBar(
       title: Text(l10n.appTitle),
       actions: [
-        IconButton(
-          tooltip: l10n.themeToggleLabel,
-          onPressed: onThemeToggle,
-          icon: Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-        ),
-        DropdownButtonHideUnderline(
-          child: DropdownButton<Locale>(
-            value: settings.locale,
-            icon: const Icon(Icons.language),
-            borderRadius: BorderRadius.circular(12),
-            onChanged: (locale) {
-              if (locale != null) {
-                onLocaleChanged(locale);
-              }
-            },
-            items: localeItems,
-          ),
-        ),
-        const SizedBox(width: 8),
         TextButton.icon(
           onPressed: isBusy ? null : () => onSignOut(),
           icon: const Icon(Icons.logout),
@@ -230,21 +184,6 @@ class _DashboardAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
-
-  String _localeDisplayName(Locale locale) {
-    switch (locale.languageCode) {
-      case 'he':
-        return 'עברית';
-      case 'ar':
-        return 'العربية';
-      default:
-        return 'English';
-    }
-  }
-
-  bool _isRtlLocale(Locale locale) {
-    return locale.languageCode == 'ar' || locale.languageCode == 'he';
-  }
 }
 
 class _DashboardRail extends StatelessWidget {

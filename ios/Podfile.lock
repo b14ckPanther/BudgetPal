@@ -1211,6 +1211,9 @@ PODS:
   - Firebase/Firestore (11.15.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 11.15.0)
+  - Firebase/Storage (11.15.0):
+    - Firebase/CoreOnly
+    - FirebaseStorage (~> 11.15.0)
   - firebase_analytics (11.6.0):
     - Firebase/Analytics (= 11.15.0)
     - firebase_core
@@ -1221,6 +1224,10 @@ PODS:
     - Flutter
   - firebase_core (3.15.2):
     - Firebase/CoreOnly (= 11.15.0)
+    - Flutter
+  - firebase_storage (12.4.10):
+    - Firebase/Storage (= 11.15.0)
+    - firebase_core
     - Flutter
   - FirebaseAnalytics (11.15.0):
     - FirebaseAnalytics/Default (= 11.15.0)
@@ -1285,6 +1292,13 @@ PODS:
     - GoogleUtilities/UserDefaults (~> 8.1)
     - PromisesObjC (~> 2.4)
   - FirebaseSharedSwift (11.15.0)
+  - FirebaseStorage (11.15.0):
+    - FirebaseAppCheckInterop (~> 11.0)
+    - FirebaseAuthInterop (~> 11.0)
+    - FirebaseCore (~> 11.15.0)
+    - FirebaseCoreExtension (~> 11.15.0)
+    - GoogleUtilities/Environment (~> 8.1)
+    - GTMSessionFetcher/Core (< 5.0, >= 3.4)
   - Flutter (1.0.0)
   - GoogleAdsOnDeviceConversion (2.1.0):
     - GoogleUtilities/Logger (~> 8.1)
@@ -1454,6 +1468,7 @@ DEPENDENCIES:
   - firebase_analytics (from `.symlinks/plugins/firebase_analytics/ios`)
   - firebase_auth (from `.symlinks/plugins/firebase_auth/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
+  - firebase_storage (from `.symlinks/plugins/firebase_storage/ios`)
   - Flutter (from `Flutter`)
   - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
@@ -1475,6 +1490,7 @@ SPEC REPOS:
     - FirebaseFirestoreInternal
     - FirebaseInstallations
     - FirebaseSharedSwift
+    - FirebaseStorage
     - GoogleAdsOnDeviceConversion
     - GoogleAppMeasurement
     - GoogleUtilities
@@ -1495,6 +1511,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/firebase_auth/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
+  firebase_storage:
+    :path: ".symlinks/plugins/firebase_storage/ios"
   Flutter:
     :path: Flutter
   image_picker_ios:
@@ -1512,6 +1530,7 @@ SPEC CHECKSUMS:
   firebase_analytics: 0e25ca1d4001ccedd40b4e5b74c0ec34e18f6425
   firebase_auth: 50af8366c87bb88c80ebeae62eb60189c7246b9b
   firebase_core: 995454a784ff288be5689b796deb9e9fa3601818
+  firebase_storage: 1144b3236855c52ff52741b12374862ee84d5a28
   FirebaseAnalytics: 6433dfd311ba78084fc93bdfc145e8cb75740eae
   FirebaseAppCheckInterop: 06fe5a3799278ae4667e6c432edd86b1030fa3df
   FirebaseAuth: a6575e5fbf46b046c58dc211a28a5fbdd8d4c83b
@@ -1523,6 +1542,7 @@ SPEC CHECKSUMS:
   FirebaseFirestoreInternal: df9ab608a59a4e8eefd0796ed7652f3c1a88473a
   FirebaseInstallations: 317270fec08a5d418fdbc8429282238cab3ac843
   FirebaseSharedSwift: e17c654ef1f1a616b0b33054e663ad1035c8fd40
+  FirebaseStorage: 50fc9ee147392943e492467db6b52759b0447037
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   GoogleAdsOnDeviceConversion: 2be6297a4f048459e0ae17fad9bfd2844e10cf64
   GoogleAppMeasurement: 700dce7541804bec33db590a5c496b663fbe2539
@@ -1538,6 +1558,6 @@ SPEC CHECKSUMS:
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
 
-PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+PODFILE CHECKSUM: 68b2e806411edacfdd53387497db27ab7c31d32c
 
 COCOAPODS: 1.16.2

@@ -82,6 +82,7 @@
   "transactionsAiResultTitle": "AI suggestions",
   "transactionsAiNoResults": "No items detected in the invoice. Try again with a clearer photo.",
   "transactionsAiResultApply": "Use suggestion",
+  "transactionsAiAppliedSuccess": "Transaction added from AI suggestion.",
   "budgetTitle": "Budget Envelopes",
   "budgetSubtitle": "Allocate every shekel and track remaining amounts in each category.",
   "budgetPlaceholder": "Budget envelopes coming soon.",

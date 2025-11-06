@@ -82,6 +82,7 @@
   "transactionsAiResultTitle": "اقتراحات الذكاء الاصطناعي",
   "transactionsAiNoResults": "لم يتم العثور على عناصر في الفاتورة. جرّب صورة أوضح.",
   "transactionsAiResultApply": "استخدم الاقتراح",
+  "transactionsAiAppliedSuccess": "تمت إضافة المعاملة من الاقتراح.",
   "budgetTitle": "أظرف الميزانية",
   "budgetSubtitle": "خصص كل شيكل وتابع المبالغ المتبقية في كل فئة.",
   "budgetPlaceholder": "سيتم عرض أظرف الميزانية هنا قريبًا.",

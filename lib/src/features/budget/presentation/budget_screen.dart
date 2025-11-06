@@ -5,6 +5,8 @@ import 'package:budgetpal/l10n/app_localizations.dart';
 import '../../../core/formatters/app_currency_formatter.dart';
 import '../../../core/widgets/app_error_view.dart';
 import '../../../core/widgets/app_progress_indicator.dart';
+import '../../../core/widgets/glass_backdrop.dart';
+import '../../../core/widgets/glass_panel.dart';
 import '../../categories/application/category_controller.dart';
 import '../../categories/domain/budget_category.dart';
 import '../../categories/domain/budget_category_draft.dart';
@@ -12,6 +14,15 @@ import '../application/budget_providers.dart';
 import '../../transactions/application/transactions_providers.dart';
 import '../presentation/widgets/budget_section.dart';
 import '../presentation/widgets/category_form_sheet.dart';
+
+String _shortText(String text, {int maxWords = 4}) {
+  final words = text
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty);
+  final truncated = words.take(maxWords).join(' ');
+  return truncated.isEmpty ? text : truncated;
+}
 
 class BudgetScreen extends ConsumerStatefulWidget {
   const BudgetScreen({super.key});
@@ -42,8 +53,9 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
       );
     }
 
-    final categoriesError =
-        categoriesAsync.hasError ? categoriesAsync.error : null;
+    final categoriesError = categoriesAsync.hasError
+        ? categoriesAsync.error
+        : null;
     if (categoriesError != null) {
       return AppErrorView(
         title: l10n.unknownError,
@@ -55,7 +67,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     }
 
     final overview = overviewAsync.valueOrNull;
-    final categories = categoriesAsync.valueOrNull ?? <BudgetCategory>[];
 
     if (overview == null) {
       return AppErrorView(
@@ -64,10 +75,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
         retryLabel: l10n.retryButtonLabel,
         onRetry: () => ref.invalidate(budgetOverviewProvider),
       );
-    }
-
-    if (categories.isEmpty) {
-      return _EmptyBudgetState(onAddCategory: _showAddCategory);
     }
 
     final labels = BudgetSectionLabels(
@@ -92,42 +99,43 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
       }
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: ListView(
+    final hasEnvelopes =
+        overview.incomeGroup.envelopes.isNotEmpty ||
+        overview.expenseGroups.any((group) => group.envelopes.isNotEmpty);
+
+    return Scaffold(
+      extendBody: true,
+      backgroundColor: Colors.transparent,
+      body: Stack(
         children: [
-          _BudgetSummary(overview: overview, l10n: l10n),
-          const SizedBox(height: 24),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.icon(
-              onPressed: _showAddCategory,
-              icon: const Icon(Icons.add),
-              label: Text(l10n.budgetAddCategory),
-            ),
-          ),
-          const SizedBox(height: 24),
-          if (overview.incomeGroup.envelopes.isNotEmpty) ...[
-            BudgetSection(
-              group: overview.incomeGroup,
-              sectionLabel: l10n.budgetIncomeHeading,
-              categoryLabelResolver: categoryLabel,
-              labels: labels,
-              onEdit: (envelope) => _showEditCategory(envelope.category),
-              onDelete: (envelope) => _confirmDelete(envelope.category),
-            ),
-            const SizedBox(height: 24),
-          ],
-          ...overview.expenseGroups.map(
-            (group) => Padding(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: BudgetSection(
-                group: group,
-                sectionLabel: categoryLabel(group.type),
-                categoryLabelResolver: categoryLabel,
-                labels: labels,
-                onEdit: (envelope) => _showEditCategory(envelope.category),
-                onDelete: (envelope) => _confirmDelete(envelope.category),
+          const AnimatedGlassBackdrop(),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _BudgetHeader(
+                    l10n: l10n,
+                    overview: overview,
+                    onAddCategory: () => _showAddCategory(),
+                    hasEnvelopes: hasEnvelopes,
+                  ),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: _BudgetContent(
+                      overview: overview,
+                      labels: labels,
+                      categoryLabelResolver: categoryLabel,
+                      hasEnvelopes: hasEnvelopes,
+                      onAddCategory: () => _showAddCategory(),
+                      onEdit: (envelope) =>
+                          _showEditCategory(envelope.category),
+                      onDelete: (envelope) => _confirmDelete(envelope.category),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -176,61 +184,6 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   }
 }
 
-class _BudgetSummary extends StatelessWidget {
-  const _BudgetSummary({
-    required this.overview,
-    required this.l10n,
-  });
-
-  final BudgetOverview overview;
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.budgetTitle,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 24,
-              runSpacing: 16,
-              children: [
-                _SummaryMetric(
-                  label: l10n.budgetTotalsIncomeReceived,
-                  value: overview.totalIncomeReceived,
-                ),
-                _SummaryMetric(
-                  label: l10n.budgetTotalsBudgeted,
-                  value: overview.totalExpenseBudget,
-                ),
-                _SummaryMetric(
-                  label: l10n.budgetTotalsSpent,
-                  value: overview.totalExpenseSpent,
-                ),
-                _SummaryMetric(
-                  label: l10n.budgetTotalsAvailable,
-                  value: overview.availableToBudget,
-                  highlight: overview.availableToBudget < 0,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SummaryMetric extends StatelessWidget {
   const _SummaryMetric({
     required this.label,
@@ -246,60 +199,235 @@ class _SummaryMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context);
-    final formattedValue =
-        AppCurrencyFormatter.format(value, locale: locale);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          formattedValue,
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: highlight ? theme.colorScheme.error : null,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+    final formattedValue = AppCurrencyFormatter.format(value, locale: locale);
+    final colorScheme = theme.colorScheme;
+    final gradient = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        colorScheme.primary.withValues(alpha: 0.14),
+        colorScheme.surface.withValues(alpha: 0.08),
       ],
+    );
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.9, end: 1),
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutBack,
+      builder: (context, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(gradient: gradient),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              formattedValue,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: highlight ? colorScheme.error : colorScheme.onSurface,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _EmptyBudgetState extends StatelessWidget {
-  const _EmptyBudgetState({required this.onAddCategory});
+class _BudgetHeader extends StatelessWidget {
+  const _BudgetHeader({
+    required this.l10n,
+    required this.overview,
+    required this.onAddCategory,
+    required this.hasEnvelopes,
+  });
+
+  final AppLocalizations l10n;
+  final BudgetOverview overview;
+  final VoidCallback onAddCategory;
+  final bool hasEnvelopes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final metrics = [
+      _SummaryMetric(
+        label: l10n.budgetTotalsIncomeReceived,
+        value: overview.totalIncomeReceived,
+      ),
+      _SummaryMetric(
+        label: l10n.budgetTotalsBudgeted,
+        value: overview.totalExpenseBudget,
+      ),
+      _SummaryMetric(
+        label: l10n.budgetTotalsSpent,
+        value: overview.totalExpenseSpent,
+      ),
+      _SummaryMetric(
+        label: l10n.budgetTotalsAvailable,
+        value: overview.availableToBudget,
+        highlight: overview.availableToBudget < 0,
+      ),
+    ];
+
+    return GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.budgetTitle,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _shortText(l10n.budgetSubtitle),
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              FilledButton.icon(
+                onPressed: onAddCategory,
+                icon: const Icon(Icons.add),
+                label: Text(l10n.budgetAddCategory),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 250),
+            opacity: hasEnvelopes ? 1 : 0.7,
+            child: Wrap(spacing: 16, runSpacing: 16, children: metrics),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BudgetContent extends StatelessWidget {
+  const _BudgetContent({
+    required this.overview,
+    required this.labels,
+    required this.categoryLabelResolver,
+    required this.hasEnvelopes,
+    required this.onAddCategory,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final BudgetOverview overview;
+  final BudgetSectionLabels labels;
+  final String Function(CategoryType type) categoryLabelResolver;
+  final bool hasEnvelopes;
+  final VoidCallback onAddCategory;
+  final void Function(BudgetEnvelope envelope) onEdit;
+  final void Function(BudgetEnvelope envelope) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final sections = <Widget>[
+      if (overview.incomeGroup.envelopes.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: BudgetSection(
+            group: overview.incomeGroup,
+            sectionLabel: l10n.budgetIncomeHeading,
+            categoryLabelResolver: categoryLabelResolver,
+            labels: labels,
+            onEdit: onEdit,
+            onDelete: onDelete,
+          ),
+        ),
+      ...overview.expenseGroups.map(
+        (group) => Padding(
+          padding: const EdgeInsets.only(bottom: 24),
+          child: BudgetSection(
+            group: group,
+            sectionLabel: categoryLabelResolver(group.type),
+            categoryLabelResolver: categoryLabelResolver,
+            labels: labels,
+            onEdit: onEdit,
+            onDelete: onDelete,
+          ),
+        ),
+      ),
+    ];
+
+    return GlassPanel(
+      padding: EdgeInsets.zero,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: hasEnvelopes
+            ? ListView(
+                key: const ValueKey('budget_sections'),
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                children: sections,
+              )
+            : _BudgetEmptyView(
+                key: const ValueKey('budget_empty'),
+                onAddCategory: onAddCategory,
+              ),
+      ),
+    );
+  }
+}
+
+class _BudgetEmptyView extends StatelessWidget {
+  const _BudgetEmptyView({super.key, required this.onAddCategory});
 
   final VoidCallback onAddCategory;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Center(
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              l10n.budgetNoCategoriesTitle,
-              style: theme.textTheme.titleLarge,
+              _shortText(l10n.budgetNoCategoriesTitle),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: 320,
-              child: Text(
-                l10n.budgetNoCategoriesSubtitle,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+            Text(
+              _shortText(l10n.budgetNoCategoriesSubtitle),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             FilledButton(

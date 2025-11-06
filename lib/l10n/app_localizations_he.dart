@@ -266,6 +266,9 @@ class AppLocalizationsHe extends AppLocalizations {
   String get transactionsAiResultApply => 'השתמש בהצעה';
 
   @override
+  String get transactionsAiAppliedSuccess => 'העסקה נוספה מהמלצת ה-AI.';
+
+  @override
   String get budgetTitle => 'מעטפות תקציב';
 
   @override

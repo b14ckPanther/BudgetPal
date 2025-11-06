@@ -34,6 +34,7 @@ class UserProfileRepository {
       'username': username,
       'preferredThemeMode': 'system',
       'preferredLocale': 'he',
+      'photoUrl': null,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -130,6 +131,17 @@ class UserProfileRepository {
     final normalized = normalizeUsername(username);
     final docRef = _firestore.doc(usernameDocumentPath(normalized));
     await docRef.delete();
+  }
+
+  Future<void> updatePhotoUrl({
+    required String uid,
+    required String? photoUrl,
+  }) async {
+    final docRef = _firestore.doc(userDocumentPath(uid));
+    await docRef.set({
+      'photoUrl': photoUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<String?> emailForUsername(String username) async {
