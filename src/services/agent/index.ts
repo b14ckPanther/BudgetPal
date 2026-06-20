@@ -72,7 +72,10 @@ export async function sendMessageToAgent(message: string): Promise<AgentResponse
 /**
  * Confirm a proposed agent action.
  */
-export async function confirmAgentAction(actionId: string): Promise<any> {
+export async function confirmAgentAction(
+  actionId: string,
+  overrides?: Record<string, unknown>
+): Promise<any> {
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError || !sessionData?.session) {
     throw new Error('User session not found');
@@ -90,6 +93,7 @@ export async function confirmAgentAction(actionId: string): Promise<any> {
     body: JSON.stringify({
       actionId,
       action: 'confirm',
+      ...(overrides ? { overrides } : {}),
     }),
   });
 

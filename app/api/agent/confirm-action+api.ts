@@ -19,10 +19,10 @@ export async function POST(request: ExpoRequest): Promise<Response> {
       return Response.json({ error: result.error.message }, { status: 400 });
     }
 
-    const { actionId, action } = result.data;
+    const { actionId, action, overrides } = result.data;
 
     if (action === 'confirm') {
-      const confirmResult = await confirmAction(supabase, userId, actionId);
+      const confirmResult = await confirmAction(supabase, userId, actionId, overrides);
       return Response.json({
         success: true,
         action: 'confirmed',

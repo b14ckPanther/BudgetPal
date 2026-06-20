@@ -15,6 +15,7 @@ import { generateSavingAdvice } from './generateSavingAdvice';
 import { parseBudgetLimitChange } from './parseBudgetLimitChange';
 import { buildBudgetLimitProposal } from './buildBudgetLimitProposal';
 import { loadUserContext } from './loadUserContext';
+import { AgentChannel } from './processAgentMessage';
 
 export interface IntentHandlerResult {
   agentResponseContent: string;
@@ -35,8 +36,11 @@ export async function handleAgentIntent(
     userCategories: HierarchyCategory[];
     classificationMessage: string;
     userMessageId?: string | null;
+    channel?: AgentChannel;
+    transcription?: string;
   }
 ): Promise<IntentHandlerResult> {
+  const channel = context.channel ?? 'text';
   let agentResponseContent = context.classificationMessage;
   const cards: IntentHandlerResult['cards'] = [];
   const actions: IntentHandlerResult['actions'] = [];
@@ -66,16 +70,76 @@ export async function handleAgentIntent(
     if (actionError || !action) {
       agentResponseContent = "I analyzed your request but couldn't create the transaction proposal. Let's try again.";
     } else {
-      agentResponseContent = `I've prepared a transaction proposal for you. Please confirm the details below:`;
-      cards.push({
-        type: 'transaction_preview',
-        title: 'Confirm Transaction',
-        data: { actionId: action.id, ...proposal },
-      });
+      let actionId = action.id;
+      let actionPayload: Record<string, unknown> = {
+        ...proposal,
+        source: channel === 'voice' ? 'voice' : 'text',
+      };
+      let voiceEntryId: string | undefined;
+
+      if (channel === 'voice' && context.transcription) {
+        const { data: voiceEntry, error: voiceError } = await supabase
+          .from('voice_entries')
+          .insert({
+            user_id: userId,
+            audio_url: null,
+            transcription: context.transcription,
+            interpreted_payload: proposal as Database['public']['Tables']['voice_entries']['Insert']['interpreted_payload'],
+            confidence: proposal.confidence,
+            status: 'pending_review',
+          })
+          .select()
+          .single();
+
+        if (voiceError || !voiceEntry) {
+          agentResponseContent = "I transcribed your voice but couldn't prepare the transaction. Please try again.";
+          await supabase.from('agent_actions').delete().eq('id', action.id);
+          return { agentResponseContent, cards, actions, suggestedPrompts };
+        }
+
+        voiceEntryId = voiceEntry.id;
+        actionPayload = { ...actionPayload, voiceEntryId };
+
+        const { data: updatedAction, error: updateError } = await supabase
+          .from('agent_actions')
+          .update({ payload: actionPayload as Database['public']['Tables']['agent_actions']['Update']['payload'] })
+          .eq('id', action.id)
+          .select()
+          .single();
+
+        if (updateError || !updatedAction) {
+          agentResponseContent = "I transcribed your voice but couldn't prepare the transaction. Please try again.";
+          await supabase.from('voice_entries').update({ status: 'rejected' }).eq('id', voiceEntry.id);
+          await supabase.from('agent_actions').delete().eq('id', action.id);
+          return { agentResponseContent, cards, actions, suggestedPrompts };
+        }
+
+        actionId = updatedAction.id;
+        agentResponseContent = `I heard: "${context.transcription}". Please review and confirm the transaction below:`;
+        cards.push({
+          type: 'voice_preview',
+          title: 'Voice Transaction',
+          data: {
+            actionId,
+            voiceEntryId,
+            transcription: context.transcription,
+            interpretationConfidence: proposal.confidence,
+            ...proposal,
+          },
+        });
+      } else {
+        agentResponseContent = `I've prepared a transaction proposal for you. Please confirm the details below:`;
+        cards.push({
+          type: 'transaction_preview',
+          title: 'Confirm Transaction',
+          data: { actionId, ...proposal },
+        });
+      }
+
       actions.push({
-        id: action.id,
+        id: actionId,
         type: 'CREATE_TRANSACTION',
-        payload: proposal,
+        payload: actionPayload,
         status: 'proposed',
         confidence: proposal.confidence,
         requiresConfirmation: true,

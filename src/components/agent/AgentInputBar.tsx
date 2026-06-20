@@ -16,6 +16,7 @@ interface AgentInputBarProps {
   onAttachPress?: () => void;
   loading?: boolean;
   disabled?: boolean;
+  voiceActive?: boolean;
   value?: string;
   onChangeText?: (text: string) => void;
 }
@@ -27,6 +28,7 @@ export function AgentInputBar({
   onAttachPress,
   loading = false,
   disabled = false,
+  voiceActive = false,
   value,
   onChangeText,
 }: AgentInputBarProps) {
@@ -47,7 +49,7 @@ export function AgentInputBar({
     }
   };
 
-  const isInteractionDisabled = disabled || loading;
+  const isInteractionDisabled = disabled || loading || voiceActive;
 
   return (
     <View
@@ -103,13 +105,16 @@ export function AgentInputBar({
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : (
-          <Pressable 
-            onPress={isInteractionDisabled ? undefined : onMicPress} 
-            style={styles.actionBtn} 
+          <Pressable
+            onPress={isInteractionDisabled ? undefined : onMicPress}
+            style={[
+              styles.actionBtn,
+              voiceActive && { backgroundColor: colors.primarySoft, borderRadius: 14 },
+            ]}
             hitSlop={8}
             disabled={isInteractionDisabled}
           >
-            <Mic size={20} color={colors.primary} />
+            <Mic size={20} color={voiceActive ? colors.primary : colors.primary} />
           </Pressable>
         )}
         {text.trim().length > 0 && !loading && (

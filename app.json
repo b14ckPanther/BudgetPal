@@ -31,7 +31,14 @@
         }
       ],
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "BudgetPal needs microphone access to record voice expenses."
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

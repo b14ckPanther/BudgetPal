@@ -121,9 +121,12 @@ export const BudgetLimitProposalSchema = z.object({
 export type BudgetLimitProposal = z.infer<typeof BudgetLimitProposalSchema>;
 
 // ── Confirm Action Request ───────────────────────────────
+export const TransactionProposalOverrideSchema = TransactionProposalSchema.partial();
+
 export const ConfirmActionSchema = z.object({
   actionId: z.string().uuid(),
   action: z.enum(['confirm', 'cancel']),
+  overrides: TransactionProposalOverrideSchema.optional(),
 });
 
 export type ConfirmActionRequest = z.infer<typeof ConfirmActionSchema>;

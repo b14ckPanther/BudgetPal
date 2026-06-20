@@ -15,11 +15,13 @@ import { t } from '@/lib/i18n';
 
 interface VoicePreviewCardProps {
   transcription: string;
-  merchant: string;
+  merchant?: string;
+  title?: string;
   amount: number;
   category: string;
   date: string;
-  confidence: number;
+  type: 'expense' | 'income' | 'transfer';
+  interpretationConfidence: number;
   onConfirm?: () => void;
   onEdit?: () => void;
   onCancel?: () => void;
@@ -28,15 +30,20 @@ interface VoicePreviewCardProps {
 export function VoicePreviewCard({
   transcription,
   merchant,
+  title,
   amount,
   category,
   date,
-  confidence,
+  type,
+  interpretationConfidence,
   onConfirm,
   onEdit,
   onCancel,
 }: VoicePreviewCardProps) {
   const { colors, spacing } = useTheme();
+
+  const displayLabel = title?.trim() || merchant?.trim() || 'Transaction';
+  const detailLabel = merchant?.trim() ? t('cards.merchant') : t('cards.title');
 
   return (
     <Card variant="elevated" accentColor={colors.chart5}>
@@ -59,12 +66,18 @@ export function VoicePreviewCard({
       </Text>
 
       <View style={[styles.row, { marginTop: spacing.xs }]}>
-        <Text variant="bodySmall" color={colors.textMuted}>{t('cards.merchant')}</Text>
-        <Text variant="bodySmall" weight="medium">{merchant}</Text>
+        <Text variant="bodySmall" color={colors.textMuted}>{t('cards.type')}</Text>
+        <Text variant="bodySmall" weight="medium" style={{ textTransform: 'capitalize' }}>
+          {type}
+        </Text>
+      </View>
+      <View style={styles.row}>
+        <Text variant="bodySmall" color={colors.textMuted}>{detailLabel}</Text>
+        <Text variant="bodySmall" weight="medium">{displayLabel}</Text>
       </View>
       <View style={styles.row}>
         <Text variant="bodySmall" color={colors.textMuted}>{t('cards.amount')}</Text>
-        <MoneyAmount amount={amount} size="sm" type="expense" showSign />
+        <MoneyAmount amount={amount} size="sm" type={type === 'income' ? 'income' : 'expense'} showSign />
       </View>
       <View style={styles.row}>
         <Text variant="bodySmall" color={colors.textMuted}>{t('cards.category')}</Text>
@@ -75,8 +88,10 @@ export function VoicePreviewCard({
         <Text variant="bodySmall" weight="medium">{date}</Text>
       </View>
       <View style={styles.row}>
-        <Text variant="bodySmall" color={colors.textMuted}>{t('cards.confidence')}</Text>
-        <Text variant="bodySmall" weight="medium" color={colors.primary}>{Math.round(confidence * 100)}%</Text>
+        <Text variant="bodySmall" color={colors.textMuted}>{t('cards.interpretationConfidence')}</Text>
+        <Text variant="bodySmall" weight="medium" color={colors.primary}>
+          {Math.round(interpretationConfidence * 100)}%
+        </Text>
       </View>
 
       <View style={[styles.actions, { marginTop: spacing.lg }]}>

@@ -4,9 +4,9 @@
  * Greeting, input bar, quick actions, budget snapshot, insights, warnings, result cards.
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useRef } from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Pressable, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Mic,
@@ -19,8 +19,9 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, ProgressBar, Button } from '@/components/ui';
-import { AgentInputBar, QuickActionChip, AgentMessageBubble } from '@/components/agent';
+import { AgentInputBar, QuickActionChip, AgentMessageBubble, VoiceRecordingBar } from '@/components/agent';
 import { TransactionPreviewCard } from '@/components/cards/TransactionPreviewCard';
+import { VoicePreviewCard } from '@/components/cards/VoicePreviewCard';
 import { SpendingAnalysisCard } from '@/components/cards/SpendingAnalysisCard';
 import { AffordabilityCard } from '@/components/cards/AffordabilityCard';
 import { SavingAdviceCard } from '@/components/cards/SavingAdviceCard';
@@ -31,6 +32,9 @@ import { formatCurrency } from '@/lib/currency';
 import { formatCategoryLabel } from '@/lib/categoryHierarchy';
 import { supabase } from '@/lib/supabase';
 import { getAgentMessages, sendMessageToAgent, confirmAgentAction, cancelAgentAction } from '@/services/agent';
+import { transcribeVoiceAudio } from '@/services/voice';
+import { useVoiceRecorder, VoiceRecordingResult } from '@/hooks/useVoiceRecorder';
+import { hapticPreviewReady, hapticVoiceError } from '@/lib/voiceFeedback';
 import { AgentMessage } from '@/types/agent';
 
 export default function AgentScreen() {
@@ -48,19 +52,58 @@ export default function AgentScreen() {
   const [isSending, setIsSending] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [processedActions, setProcessedActions] = useState<Record<string, 'confirmed' | 'cancelled'>>({});
+  const transcribingRef = useRef(false);
+  const transcribeRecordingRef = useRef<(recording: VoiceRecordingResult) => void>(() => {});
 
-  // Load message history on mount
-  useEffect(() => {
-    async function loadHistory() {
-      try {
-        const history = await getAgentMessages();
-        setMessages(history);
-      } catch (err) {
-        console.error('Failed to load message history:', err);
+  const voiceRecorder = useVoiceRecorder({
+    onAutoStop: (result) => {
+      transcribeRecordingRef.current(result);
+    },
+  });
+
+  const isVoiceBusy =
+    voiceRecorder.uiState === 'listening' ||
+    voiceRecorder.uiState === 'auto_stopping' ||
+    voiceRecorder.uiState === 'transcribing';
+
+  // Load message history and action statuses when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      async function loadHistory() {
+        try {
+          const history = await getAgentMessages();
+          if (!active) return;
+          setMessages(history);
+
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user || !active) return;
+
+          const { data: actions } = await supabase
+            .from('agent_actions')
+            .select('id, status')
+            .eq('user_id', user.id)
+            .in('status', ['executed', 'cancelled']);
+
+          if (actions && active) {
+            const map: Record<string, 'confirmed' | 'cancelled'> = {};
+            actions.forEach((a) => {
+              map[a.id] = a.status === 'executed' ? 'confirmed' : 'cancelled';
+            });
+            setProcessedActions(map);
+          }
+        } catch (err) {
+          console.error('Failed to load message history:', err);
+        }
       }
-    }
-    loadHistory();
-  }, []);
+
+      loadHistory();
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
 
   const getGreeting = () => {
     const hrs = new Date().getHours();
@@ -205,6 +248,120 @@ export default function AgentScreen() {
     });
   };
 
+  const handleEditVoiceAction = (proposal: Record<string, unknown>) => {
+    router.push({
+      pathname: '/transaction/agent-edit',
+      params: {
+        actionId: proposal.actionId as string,
+        amount: proposal.amount?.toString(),
+        merchant: (proposal.merchant as string) || '',
+        title: proposal.title as string,
+        categoryId: proposal.categoryId as string,
+        categoryName: proposal.categoryName as string,
+        subcategoryId: proposal.subcategoryId as string,
+        subcategoryName: proposal.subcategoryName as string,
+        date: proposal.date as string,
+        type: proposal.type as string,
+        note: proposal.note as string,
+      },
+    });
+  };
+
+  const appendAgentResponse = useCallback((userContent: string, response: {
+    message: string;
+    intent?: string;
+    confidence?: number;
+    cards?: AgentMessage['cards'];
+    suggestedPrompts?: string[];
+  }) => {
+    const userMsg: AgentMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: userContent,
+      createdAt: new Date().toISOString(),
+    };
+    const agentMsg: AgentMessage = {
+      id: `agent-${Date.now()}`,
+      role: 'agent',
+      content: response.message,
+      intent: response.intent as AgentMessage['intent'],
+      confidence: response.confidence,
+      cards: response.cards,
+      suggestedPrompts: response.suggestedPrompts,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg, agentMsg]);
+  }, []);
+
+  const transcribeRecording = useCallback(async (recording: VoiceRecordingResult) => {
+    if (transcribingRef.current) return;
+    if (!recording.speechDetected) {
+      voiceRecorder.setFailed(t('voice.noSpeech'));
+      return;
+    }
+
+    transcribingRef.current = true;
+    voiceRecorder.markTranscribing();
+
+    try {
+      const response = await transcribeVoiceAudio(
+        recording.uri,
+        recording.durationMs,
+        recording.mimeType,
+        recording.speechDetected
+      );
+
+      const transcription = response.transcription || response.message;
+      appendAgentResponse(
+        transcription ? `"${transcription}"` : t('voice.listening'),
+        response
+      );
+
+      const hasVoicePreview = (response.cards || []).some((c) => c.type === 'voice_preview');
+      if (hasVoicePreview) {
+        await hapticPreviewReady();
+      }
+
+      voiceRecorder.markPreviewReady();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('voice.transcribeFailed');
+      await hapticVoiceError();
+      voiceRecorder.setFailed(message);
+    } finally {
+      transcribingRef.current = false;
+    }
+  }, [appendAgentResponse, voiceRecorder]);
+
+  transcribeRecordingRef.current = (recording) => {
+    void transcribeRecording(recording);
+  };
+
+  const handleMicPress = async () => {
+    if (isSending || isVoiceBusy) {
+      return;
+    }
+    await voiceRecorder.startRecording();
+  };
+
+  const handleVoiceStop = async () => {
+    const recording = await voiceRecorder.stopRecording();
+    if (!recording) return;
+    await transcribeRecording(recording);
+  };
+
+  const handleVoiceCancel = async () => {
+    await voiceRecorder.cancelRecording();
+  };
+
+  const handleVoiceRetry = async () => {
+    voiceRecorder.reset();
+    await voiceRecorder.startRecording();
+  };
+
+  const handleDismissNoSpeech = () => {
+    voiceRecorder.reset();
+  };
+
   // Handle clear chat history
   const handleClearChat = async () => {
     Alert.alert(
@@ -236,7 +393,7 @@ export default function AgentScreen() {
   // Handle Quick Action Clicks
   const handleQuickAction = (actionKey: string) => {
     if (actionKey === 'voiceExpense') {
-      Alert.alert("Voice Expense", "Voice transcription is coming in a later phase. For now, please type your transaction details.");
+      handleMicPress();
     } else if (actionKey === 'scanReceipt') {
       Alert.alert("Scan Receipt", "Receipt scanning is coming in a later phase. For now, please type your transaction details.");
     } else if (actionKey === 'analyzeSpending') {
@@ -316,11 +473,29 @@ export default function AgentScreen() {
 
         {/* ── Agent Input Bar ──────────────────────── */}
         <View style={{ marginTop: spacing.lg }}>
+          <VoiceRecordingBar
+            state={voiceRecorder.uiState}
+            elapsedMs={voiceRecorder.elapsedMs}
+            meterLevel={voiceRecorder.meterLevel}
+            silenceDetectionEnabled={voiceRecorder.silenceDetectionEnabled}
+            errorMessage={voiceRecorder.errorMessage}
+            onStop={handleVoiceStop}
+            onCancel={handleVoiceCancel}
+            onRetry={handleVoiceRetry}
+            onDismissNoSpeech={handleDismissNoSpeech}
+          />
           <AgentInputBar
             value={inputValue}
             onChangeText={setInputValue}
             onSend={handleSend}
+            onMicPress={handleMicPress}
             loading={isSending}
+            voiceActive={voiceRecorder.uiState === 'listening'}
+            disabled={
+              isVoiceBusy ||
+              voiceRecorder.uiState === 'failed' ||
+              voiceRecorder.uiState === 'no_speech'
+            }
           />
         </View>
 
@@ -406,6 +581,34 @@ export default function AgentScreen() {
                               onConfirm={isProcessed ? undefined : () => handleConfirmAction(actionId)}
                               onCancel={isProcessed ? undefined : () => handleCancelAction(actionId)}
                               onEdit={isProcessed ? undefined : () => handleEditAction(data)}
+                            />
+                            {isProcessed && renderProcessedBanner(actionId, isProcessed)}
+                          </View>
+                        );
+                      }
+
+                      if (card.type === 'voice_preview') {
+                        const actionId = data.actionId as string;
+                        const isProcessed = processedActions[actionId];
+                        return (
+                          <View key={cardKey} style={{ marginVertical: spacing.sm }}>
+                            <VoicePreviewCard
+                              transcription={data.transcription as string}
+                              merchant={data.merchant as string}
+                              title={data.title as string}
+                              amount={data.amount as number}
+                              category={formatCategoryLabel(
+                                data.categoryName as string,
+                                data.subcategoryName as string
+                              )}
+                              date={data.date as string}
+                              type={(data.type as 'expense' | 'income' | 'transfer') || 'expense'}
+                              interpretationConfidence={
+                                (data.interpretationConfidence as number) ?? (data.confidence as number)
+                              }
+                              onConfirm={isProcessed ? undefined : () => handleConfirmAction(actionId)}
+                              onCancel={isProcessed ? undefined : () => handleCancelAction(actionId)}
+                              onEdit={isProcessed ? undefined : () => handleEditVoiceAction(data)}
                             />
                             {isProcessed && renderProcessedBanner(actionId, isProcessed)}
                           </View>
