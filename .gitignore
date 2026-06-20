@@ -1,0 +1,67 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# ── Dependencies ─────────────────────────────────────────
+node_modules/
+
+# ── Expo / React Native ──────────────────────────────────
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Generated native projects (use prebuild when needed)
+/ios
+/android
+
+# ── Secrets & environment (never commit) ─────────────────
+.env
+.env.*
+!.env.example
+
+# ── Supabase CLI local state ─────────────────────────────
+supabase/.temp/
+supabase/.branches/
+
+# ── Local dev / scratch scripts ────────────────────────────
+scratch_*.js
+scratch_*.ts
+
+# ── Native signing & keys ────────────────────────────────
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# ── Metro ────────────────────────────────────────────────
+.metro-health-check*
+
+# ── Logs & debug ─────────────────────────────────────────
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+
+# ── TypeScript ───────────────────────────────────────────
+*.tsbuildinfo
+
+# ── Testing / coverage ───────────────────────────────────
+coverage/
+
+# ── Deployment tooling (local only) ──────────────────────
+.vercel/
+
+# ── OS ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Editors / IDE (local preferences) ──────────────────────
+.idea/
+.vscode/
+!.vscode/extensions.json
+.cursor/
