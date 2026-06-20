@@ -26,7 +26,7 @@ const locales: Record<string, Record<string, unknown>> = {
  * Get a translated string by dot-notation key.
  * Example: t('agent.prompt') => "What should we handle today?"
  */
-export function t(key: string): string {
+export function t(key: string, params?: Record<string, string | number>): string {
   const locale = locales[currentLocale];
   if (!locale) return key;
 
@@ -41,7 +41,13 @@ export function t(key: string): string {
     }
   }
 
-  return typeof result === 'string' ? result : key;
+  if (typeof result !== 'string') return key;
+  if (!params) return result;
+
+  return Object.entries(params).reduce(
+    (text, [name, value]) => text.replace(new RegExp(`\\{${name}\\}`, 'g'), String(value)),
+    result
+  );
 }
 
 /**

@@ -140,6 +140,32 @@ export async function cancelAgentAction(actionId: string): Promise<any> {
 }
 
 /**
+ * Clear authenticated user's agent chat history and pending proposals.
+ */
+export async function clearAgentHistory(): Promise<void> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData?.session) {
+    throw new Error('User session not found');
+  }
+
+  const token = sessionData.session.access_token;
+  const url = `${getApiUrl()}/api/agent/clear-history`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const resBody = await response.json();
+
+  if (!response.ok || resBody.error) {
+    throw new Error(resBody.error || 'Could not clear chat history. Please try again.');
+  }
+}
+
+/**
  * Create a local message in the database (e.g. for fallback or initial seeding).
  */
 export async function createAgentMessage(msg: Partial<AgentMessage>): Promise<AgentMessage> {

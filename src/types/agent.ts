@@ -100,6 +100,7 @@ export interface AgentMessage {
   confidence?: number;
   cards?: AgentCard[];
   suggestedPrompts?: string[];
+  spokenSummary?: string;
   createdAt: string;
 }
 

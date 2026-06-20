@@ -3,14 +3,16 @@
  * User profile, preferences, settings, and logout.
  */
 
-import React from 'react';
-import { View, ScrollView, StyleSheet, Alert, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState } from 'react';
+import { View, ScrollView, StyleSheet, Alert, ActivityIndicator, RefreshControl, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Globe,
   Languages,
   Gauge,
   Bell,
+  Volume2,
   Download,
   Shield,
   LogOut,
@@ -21,7 +23,9 @@ import { useTheme } from '@/theme';
 import { Screen, Text, Card, Button } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { useCurrentProfile, useCurrentBudget } from '@/hooks/useBudgetQueries';
+import { useCurrentProfile, useCurrentBudget, queryKeys } from '@/hooks/useBudgetQueries';
+import { updateProfile } from '@/services/profile';
+import { stopAgentSpeech } from '@/services/agentSpeech';
 
 interface SettingRowProps {
   icon: React.ReactNode;
@@ -53,9 +57,55 @@ function SettingRow({ icon, label, value, onPress }: SettingRowProps) {
   );
 }
 
+function SettingToggleRow({
+  icon,
+  label,
+  description,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description: string;
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  const { colors, spacing } = useTheme();
+
+  return (
+    <Card variant="default" style={{ marginBottom: spacing.sm }}>
+      <View style={styles.toggleRow}>
+        <View style={styles.toggleLeft}>
+          {icon}
+          <View style={{ marginLeft: spacing.md, flex: 1, paddingRight: spacing.sm }}>
+            <Text variant="bodySmall" weight="medium">
+              {label}
+            </Text>
+            <Text variant="caption" color={colors.textMuted} style={{ marginTop: spacing.xxs }}>
+              {description}
+            </Text>
+          </View>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onValueChange}
+          disabled={disabled}
+          trackColor={{ false: colors.borderSoft, true: colors.primarySoft }}
+          thumbColor={value ? colors.primary : colors.surface}
+          accessibilityLabel={label}
+        />
+      </View>
+    </Card>
+  );
+}
+
 export default function ProfileScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [voiceRepliesSaving, setVoiceRepliesSaving] = useState(false);
 
   // Queries
   const { data: profile, isLoading: isProfileLoading, isError: isProfileError, refetch: refetchProfile } = useCurrentProfile();
@@ -66,6 +116,7 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     try {
+      stopAgentSpeech();
       const { error } = await supabase.auth.signOut();
       if (error) {
         Alert.alert('Logout Error', error.message);
@@ -80,6 +131,23 @@ export default function ProfileScreen() {
   const onRefresh = () => {
     refetchProfile();
     refetchBudget();
+  };
+
+  const handleVoiceRepliesToggle = async (next: boolean) => {
+    if (voiceRepliesSaving) return;
+    if (!next) {
+      stopAgentSpeech();
+    }
+    setVoiceRepliesSaving(true);
+    try {
+      await updateProfile({ agentVoiceRepliesEnabled: next });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.profile });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Could not update preference.';
+      Alert.alert('Settings', message);
+    } finally {
+      setVoiceRepliesSaving(false);
+    }
   };
 
   if (isLoading) {
@@ -197,6 +265,14 @@ export default function ProfileScreen() {
           label={t('profile.notifications')}
           value={notificationsValue}
         />
+        <SettingToggleRow
+          icon={<Volume2 size={18} color={colors.textSecondary} />}
+          label={t('profile.agentVoiceReplies')}
+          description={t('profile.agentVoiceRepliesDesc')}
+          value={profile.agentVoiceRepliesEnabled === true}
+          onValueChange={handleVoiceRepliesToggle}
+          disabled={voiceRepliesSaving}
+        />
 
         {/* ── Data & Privacy ───────────────────────── */}
         <Text variant="label" color={colors.textMuted} style={{ marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 11 }}>
@@ -270,6 +346,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  toggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
   },
   headerRow: {
     flexDirection: 'row',

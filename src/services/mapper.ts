@@ -30,6 +30,7 @@ export function mapProfile(db: DBProfile): Profile {
     mainFinancialGoal: db.main_financial_goal || '',
     onboardingCompleted: db.onboarding_completed,
     notificationsEnabled: db.notifications_enabled,
+    agentVoiceRepliesEnabled: db.agent_voice_replies_enabled ?? false,
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

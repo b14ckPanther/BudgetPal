@@ -91,6 +91,7 @@ export interface Profile {
   mainFinancialGoal: string;
   onboardingCompleted: boolean;
   notificationsEnabled: boolean;
+  agentVoiceRepliesEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }

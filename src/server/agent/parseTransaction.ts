@@ -14,6 +14,23 @@ import {
 
 export type UserCategory = HierarchyCategory;
 
+export type TransactionParseErrorCode = 'invalid_amount' | 'invalid_proposal' | 'parse_failed';
+
+export class TransactionParseError extends Error {
+  readonly code: TransactionParseErrorCode;
+
+  constructor(message: string, code: TransactionParseErrorCode) {
+    super(message);
+    this.name = 'TransactionParseError';
+    this.code = code;
+  }
+}
+
+function validationErrorCode(error: { issues: Array<{ path: PropertyKey[] }> }): TransactionParseErrorCode {
+  const hasAmountIssue = error.issues.some((issue) => issue.path[0] === 'amount');
+  return hasAmountIssue ? 'invalid_amount' : 'invalid_proposal';
+}
+
 export async function parseTransaction(
   message: string,
   context: {
@@ -56,40 +73,41 @@ export async function parseTransaction(
     }
 
     const parsed = JSON.parse(cleanedText);
-    const validated = TransactionProposalSchema.parse(parsed);
+    const validated = TransactionProposalSchema.safeParse(parsed);
+
+    if (!validated.success) {
+      throw new TransactionParseError(
+        'Transaction proposal failed validation.',
+        validationErrorCode(validated.error)
+      );
+    }
+
+    const proposal = validated.data;
 
     const resolved = resolveCategoryAssignment(
       context.categories,
-      validated.categoryName,
-      validated.subcategoryName ?? undefined,
-      validated.type,
-      validated.categoryId ?? undefined,
-      validated.subcategoryId ?? undefined
+      proposal.categoryName,
+      proposal.subcategoryName ?? undefined,
+      proposal.type,
+      proposal.categoryId ?? undefined,
+      proposal.subcategoryId ?? undefined
     );
 
-    validated.categoryId = resolved.categoryId;
-    validated.categoryName = resolved.categoryName;
-    validated.subcategoryId = resolved.subcategoryId;
-    validated.subcategoryName = resolved.subcategoryName;
+    proposal.categoryId = resolved.categoryId;
+    proposal.categoryName = resolved.categoryName;
+    proposal.subcategoryId = resolved.subcategoryId;
+    proposal.subcategoryName = resolved.subcategoryName;
 
-    validated.merchant = sanitizeMerchant(validated.merchant ?? undefined) ?? undefined;
-    validated.title = validated.title?.trim() || 'Transaction';
+    proposal.merchant = sanitizeMerchant(proposal.merchant ?? undefined) ?? undefined;
+    proposal.title = proposal.title?.trim() || 'Transaction';
 
-    return validated;
+    return proposal;
   } catch (error) {
-    console.error('Error parsing transaction:', error);
+    if (error instanceof TransactionParseError) {
+      throw error;
+    }
 
-    const defaultCat = context.categories.find((c) => c.type === 'expense') || context.categories[0];
-    return {
-      type: 'expense',
-      amount: 0.01,
-      currency: context.currency,
-      title: 'Failed to parse transaction details',
-      categoryId: defaultCat?.id,
-      categoryName: defaultCat?.name || 'Uncategorized',
-      date: context.today,
-      confidence: 0.1,
-      note: 'Parsing error occurred.',
-    };
+    console.error('Error parsing transaction:', error);
+    throw new TransactionParseError('Failed to parse transaction from message.', 'parse_failed');
   }
 }

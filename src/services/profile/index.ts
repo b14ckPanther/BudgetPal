@@ -38,6 +38,9 @@ export async function updateProfile(profile: Partial<Profile>): Promise<Profile>
   if (profile.mainFinancialGoal !== undefined) dbUpdate.main_financial_goal = profile.mainFinancialGoal;
   if (profile.onboardingCompleted !== undefined) dbUpdate.onboarding_completed = profile.onboardingCompleted;
   if (profile.notificationsEnabled !== undefined) dbUpdate.notifications_enabled = profile.notificationsEnabled;
+  if (profile.agentVoiceRepliesEnabled !== undefined) {
+    dbUpdate.agent_voice_replies_enabled = profile.agentVoiceRepliesEnabled;
+  }
 
   const { data, error } = await supabase
     .from('profiles')

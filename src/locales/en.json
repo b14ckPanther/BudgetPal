@@ -57,7 +57,101 @@
     "proposalCancelled": "Proposal cancelled",
     "confirmError": "Failed to confirm transaction",
     "cancelSuccess": "Action cancelled",
-    "cancelError": "Failed to cancel action"
+    "cancelError": "Failed to cancel action",
+    "conversation": "Conversation",
+    "clearHistory": "Clear history",
+    "jumpToLatest": "Jump to latest",
+    "agentThinking": "Thinking...",
+    "viewTransactionHistory": "View Transaction History",
+    "addTransaction": "Add Transaction",
+    "addManualTransaction": "Add Manual Transaction",
+    "startFirstTransactionTitle": "Start with your first transaction",
+    "startFirstTransactionBody": "Log an expense or income manually to view spending, budget warnings, and daily limits.",
+    "categoryLimitsNotConfigured": "Category limits are not configured.",
+    "setCategoryLimitsCta": "Set category limits to activate Daily Safe-to-Spend",
+    "clearHistoryTitle": "Clear chat history?",
+    "clearHistoryMessage": "This removes your Agent conversation and pending proposals only. Your transactions, budgets, categories, reports, and profile data will not be deleted.",
+    "clearHistoryConfirm": "Clear history",
+    "clearHistoryError": "Could not clear chat history. Please try again."
+  },
+  "agentReplies": {
+    "greeting": {
+      "default": [
+        "{namePrefix}Want to log something you spent, or check your budget?",
+        "Good to see you. You can speak an expense, add one manually, or ask what you can afford.",
+        "Hi there. I can help with spending, limits, or logging a purchase.",
+        "{namePrefix}What should we look at in your budget today?"
+      ],
+      "noTransactions": [
+        "{namePrefix}You have not logged any transactions yet. Want to add your first expense?",
+        "Welcome. Start with a quick expense and I can help you track spending from there.",
+        "{namePrefix}Try speaking an expense or adding one manually to get started."
+      ],
+      "noLimits": [
+        "{namePrefix}You have not set category limits yet. I can help you set up a simple starting budget.",
+        "Hi. Set category limits on the Budget screen and I can guide safe-to-spend decisions.",
+        "{namePrefix}A few category limits will unlock affordability checks and daily safe-to-spend."
+      ],
+      "nearLimit": [
+        "{namePrefix}Your {category} budget is about {percent} percent used. Want a quick breakdown?",
+        "Heads up — {category} is getting close to its limit. I can show where the spend is going.",
+        "{namePrefix}{category} is at {percent} percent. Want to review it or log something new?"
+      ],
+      "safeToSpend": [
+        "{namePrefix}You have about {safeAmount} {currency} safe to spend today. Want to log something or check a category?",
+        "Your daily safe-to-spend is around {safeAmount} {currency}. I can help log a purchase or review spending.",
+        "{namePrefix}Plenty of room today — roughly {safeAmount} {currency} safe to spend. What should we handle?"
+      ]
+    },
+    "appGuidance": [
+      "I can log expenses, review spending, check affordability, and adjust budget limits.",
+      "Try a voice expense, ask what you spent most on, or check whether a purchase fits your plan.",
+      "Speak a purchase, scan details in later, or ask what is left in a category."
+    ],
+    "outOfScope": {
+      "general": [
+        "I am focused on your budget, but I can help you log a purchase or review spending.",
+        "I cannot help with that topic, but I can check affordability or show category spending.",
+        "I am here for spending and budget decisions. Want to see what is left in your food budget?"
+      ],
+      "spendHint": [
+        "I am focused on your budget, but I can help you check what you can spend on dinner tonight.",
+        "I cannot answer that directly, but I can help you log a purchase or see what is left in a category.",
+        "I am here for spending decisions. Want to check whether something fits your plan?"
+      ]
+    },
+    "unclear": [
+      "I need a bit more detail. Try an amount and what it was for, like lunch 45 shekels.",
+      "Could you add an amount or category? For example: coffee 18 or food spending this month.",
+      "I did not quite catch that. You can log an expense, check spending, or ask about affordability."
+    ],
+    "promptSets": {
+      "general": [
+        ["What did I spend most on this month?", "Log lunch for 55 shekels"],
+        ["Can I afford dinner for 120?", "Twenty-five coffee"],
+        ["Show my food spending this month", "Log a coffee expense"]
+      ],
+      "firstTransaction": [
+        ["Twenty-five lunch", "Add my first expense"],
+        ["Coffee 18 shekels", "Log groceries 120"]
+      ],
+      "setupBudget": [
+        ["Set Food and Drinks to 600", "Help me set category limits"],
+        ["What should my first limits be?", "Open budget setup"]
+      ],
+      "nearLimit": [
+        ["Show {category} spending this month", "What did I spend most on?"],
+        ["Can I afford dinner for 80?", "Log an expense"]
+      ],
+      "dailySpend": [
+        ["Can I afford coffee for 20?", "Log lunch for 45 shekels"],
+        ["What did I spend today?", "Show food spending this month"]
+      ],
+      "affordability": [
+        ["Can I afford dinner for 120?", "What is left in my food budget?"],
+        ["Log lunch for 55 shekels", "Show safe to spend today"]
+      ]
+    }
   },
   "voice": {
     "listening": "Listening",
@@ -161,6 +255,8 @@
     "budgetStyle": "Budget Style",
     "notifications": "Notifications",
     "notificationPreference": "Notification Preference",
+    "agentVoiceReplies": "Agent voice replies",
+    "agentVoiceRepliesDesc": "Read BudgetPal's responses aloud after voice interactions. On iOS, speech may be muted when the Ring/Silent switch is on.",
     "dataExport": "Data Export",
     "privacy": "Privacy",
     "logout": "Log Out",
@@ -245,6 +341,36 @@
     "proposedLimit": "Proposed limit",
     "moveAmount": "Amount to move",
     "createsNewLimit": "This will create a new category limit"
+  },
+  "agentSpeech": {
+    "greetingNamed": "Hello {name}. How can I help you today?",
+    "greetingGeneric": "Hello. How can I help you today?",
+    "transactionPreview": "I heard an {type} of {amount} for {label}. Please review and confirm.",
+    "spendingTop": "Your top spending is {name} at {amount}.",
+    "spendingFallback": "Here is a quick look at your recent spending.",
+    "savingFallback": "Here is a saving tip based on your budget.",
+    "budgetSet": "I propose setting {category} to {amount}. Please review and confirm.",
+    "budgetIncrease": "I propose increasing {category} by {amount}. Please review and confirm.",
+    "budgetDecrease": "I propose decreasing {category} by {amount}. Please review and confirm.",
+    "budgetMove": "I propose moving {amount} from {source} to {target}. Please review and confirm.",
+    "budgetIncreaseFromTo": "I can increase your {category} limit from {from} to {to}. Please review and confirm.",
+    "budgetSetFromTo": "I can set your {category} limit from {from} to {to}. Please review and confirm.",
+    "budgetWarning": "{category} is {percent} used, with {days} left in your cycle.",
+    "budgetWarningSafeToSpend": "You have {amount} safe to spend today.",
+    "budgetWarningFallback": "One of your budget categories needs attention.",
+    "affordabilitySafe": "This purchase looks safe to proceed.",
+    "affordabilitySafeWithAmount": "Spending {amount} on {item} looks safe to proceed.",
+    "affordabilityCaution": "This purchase is a caution. It would reduce your daily safe-to-spend amount.",
+    "affordabilityNotRecommended": "This purchase is not recommended right now.",
+    "affordabilityNotRecommendedWithAmount": "Spending {amount} on {item} is not recommended right now.",
+    "affordabilityNeedSetup": "I need your category limits set up before I can judge affordability.",
+    "affordabilityFallback": "Here is my affordability take.",
+    "confirmed": "Done. Your transaction has been added.",
+    "cancelled": "Cancelled. Nothing was changed.",
+    "error": "Sorry, something went wrong. Please try again.",
+    "fallback": "Here is my response.",
+    "replay": "Replay spoken summary",
+    "stopSpeaking": "Stop speaking"
   },
   "insights": {
     "foodSpendingRising": "Food spending is rising faster than usual.",

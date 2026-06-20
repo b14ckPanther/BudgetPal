@@ -27,6 +27,7 @@ export interface Database {
           main_financial_goal: string | null
           onboarding_completed: boolean
           notifications_enabled: boolean
+          agent_voice_replies_enabled: boolean
           created_at: string
           updated_at: string
         }
@@ -47,6 +48,7 @@ export interface Database {
           main_financial_goal?: string | null
           onboarding_completed?: boolean
           notifications_enabled?: boolean
+          agent_voice_replies_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -67,6 +69,7 @@ export interface Database {
           main_financial_goal?: string | null
           onboarding_completed?: boolean
           notifications_enabled?: boolean
+          agent_voice_replies_enabled?: boolean
           created_at?: string
           updated_at?: string
         }

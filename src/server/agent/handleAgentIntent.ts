@@ -6,7 +6,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../../types/database';
 import { AgentIntentType } from '../validation';
 import { HierarchyCategory } from '../../lib/categoryHierarchy';
-import { parseTransaction } from './parseTransaction';
+import { parseTransaction, TransactionParseError } from './parseTransaction';
 import { parseSpendingQuery } from './parseSpendingQuery';
 import { runSpendingAnalysis } from './runSpendingAnalysis';
 import { parseAffordabilityRequest } from './parseAffordabilityRequest';
@@ -16,6 +16,14 @@ import { parseBudgetLimitChange } from './parseBudgetLimitChange';
 import { buildBudgetLimitProposal } from './buildBudgetLimitProposal';
 import { loadUserContext } from './loadUserContext';
 import { AgentChannel } from './processAgentMessage';
+import {
+  buildAppGuidanceReply,
+  buildGreetingReply,
+  buildOutOfScopeReply,
+  buildUnclearReply,
+  getIntentRotationIndex,
+  loadAgentReplyContext,
+} from './buildContextualReply';
 
 export interface IntentHandlerResult {
   agentResponseContent: string;
@@ -47,11 +55,27 @@ export async function handleAgentIntent(
   let suggestedPrompts: string[] = [];
 
   if (intent === 'add_transaction') {
-    const proposal = await parseTransaction(message, {
-      today: context.today,
-      currency: context.currency,
-      categories: context.userCategories,
-    });
+    let proposal;
+    try {
+      proposal = await parseTransaction(message, {
+        today: context.today,
+        currency: context.currency,
+        categories: context.userCategories,
+      });
+    } catch (err) {
+      if (err instanceof TransactionParseError) {
+        if (err.code === 'invalid_amount') {
+          agentResponseContent =
+            'I need a valid amount to log that. For example: "Lunch 45 shekels" or "Coffee 18".';
+        } else {
+          agentResponseContent =
+            "I couldn't quite understand that transaction. Try including an amount, merchant, or category.";
+        }
+        suggestedPrompts = ['Lunch 45 shekels', 'Coffee 18', 'Twenty-five dinner'];
+        return { agentResponseContent, cards, actions, suggestedPrompts };
+      }
+      throw err;
+    }
 
     const { data: action, error: actionError } = await supabase
       .from('agent_actions')
@@ -298,30 +322,29 @@ export async function handleAgentIntent(
     return { agentResponseContent, cards, actions, suggestedPrompts };
   }
 
-  if (intent === 'casual_greeting') {
-    suggestedPrompts = [
-      'What did I spend most on this month?',
-      'Can I afford dinner for 120?',
-      'Log lunch for 55 shekels',
-    ];
-  } else if (intent === 'app_guidance') {
-    suggestedPrompts = [
-      'Show me gas spending for the last 8 months',
-      'How can I save more this week?',
-      'Set Food & Drinks budget to 600',
-    ];
-  } else if (intent === 'unclear') {
-    agentResponseContent =
-      "I need a bit more detail. You can ask about spending, affordability, saving tips, log a transaction, or change a budget limit.";
-    suggestedPrompts = [
-      'What did I spend most on this month?',
-      'lunch 45 shekels',
-      'Set Shopping limit to 400',
-    ];
-  } else {
-    agentResponseContent =
-      'I focus on personal budgeting — spending analysis, affordability, saving advice, transactions, and budget limits.';
-    suggestedPrompts = ['What did I spend most on this month?', 'Log a coffee expense'];
+  if (intent === 'casual_greeting' || intent === 'app_guidance' || intent === 'out_of_scope' || intent === 'unclear') {
+    const replyContext = await loadAgentReplyContext(supabase, userId, context.userName);
+    const rotation = await getIntentRotationIndex(supabase, userId, intent);
+
+    if (intent === 'casual_greeting') {
+      const reply = buildGreetingReply(replyContext, rotation);
+      agentResponseContent = reply.message;
+      suggestedPrompts = reply.suggestedPrompts;
+    } else if (intent === 'app_guidance') {
+      const reply = buildAppGuidanceReply(replyContext, rotation);
+      agentResponseContent = reply.message;
+      suggestedPrompts = reply.suggestedPrompts;
+    } else if (intent === 'out_of_scope') {
+      const reply = buildOutOfScopeReply(replyContext, rotation, message);
+      agentResponseContent = reply.message;
+      suggestedPrompts = reply.suggestedPrompts;
+    } else {
+      const reply = buildUnclearReply(rotation);
+      agentResponseContent = reply.message;
+      suggestedPrompts = reply.suggestedPrompts;
+    }
+
+    return { agentResponseContent, cards, actions, suggestedPrompts };
   }
 
   return { agentResponseContent, cards, actions, suggestedPrompts };

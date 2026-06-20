@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { Mic, Camera, Paperclip, Send } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { t } from '@/lib/i18n';
@@ -71,16 +71,21 @@ export function AgentInputBar({
         placeholder={t('agent.inputPlaceholder')}
         placeholderTextColor={colors.textMuted}
         editable={!isInteractionDisabled}
+        multiline
+        scrollEnabled
+        blurOnSubmit={false}
+        textAlignVertical="center"
         style={[
           styles.input,
           {
             fontFamily: typography.fontFamily.regular,
             fontSize: typography.size.md,
             color: colors.textPrimary,
+            maxHeight: 120,
           },
         ]}
-        returnKeyType="send"
-        onSubmitEditing={handleSend}
+        returnKeyType={Platform.OS === 'ios' ? 'default' : 'send'}
+        onSubmitEditing={Platform.OS === 'android' ? handleSend : undefined}
       />
 
       <View style={styles.actions}>
@@ -135,12 +140,13 @@ export function AgentInputBar({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     borderWidth: 1,
   },
   input: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 8,
+    minHeight: 36,
   },
   actions: {
     flexDirection: 'row',

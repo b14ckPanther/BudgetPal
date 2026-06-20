@@ -10,7 +10,6 @@ import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
   getRecordingPermissionsAsync,
-  setAudioModeAsync,
   type RecordingOptions,
 } from 'expo-audio';
 import { t } from '@/lib/i18n';
@@ -20,6 +19,10 @@ import {
   normalizeMetering,
 } from '@/lib/voiceSilenceDetection';
 import { voiceDevLog, type VoiceStopReason } from '@/lib/voiceDevLog';
+import {
+  configureRecordingAudioMode,
+  restorePlaybackAudioMode,
+} from '@/lib/voiceAudioSession';
 import {
   hapticRecordingStart,
   hapticRecordingStop,
@@ -104,6 +107,9 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}) {
     setErrorMessage(message);
     setUiState('failed');
     sessionEndedRef.current = true;
+    void restorePlaybackAudioMode().catch((err) => {
+      console.warn('Failed to restore playback audio mode after failure:', err);
+    });
   }, [clearMonitoring, logStop]);
 
   const discardActiveRecording = useCallback(async () => {
@@ -114,6 +120,12 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}) {
       }
     } catch (err) {
       console.error('Failed to discard recording:', err);
+    } finally {
+      try {
+        await restorePlaybackAudioMode();
+      } catch (err) {
+        console.warn('Failed to restore playback audio mode after discard:', err);
+      }
     }
   }, [recorder]);
 
@@ -172,6 +184,12 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}) {
         const status = recorder.getStatus();
         if (status.isRecording || recorder.isRecording) {
           await recorder.stop();
+        }
+
+        try {
+          await restorePlaybackAudioMode();
+        } catch (err) {
+          console.warn('Failed to restore playback audio mode after recording:', err);
         }
 
         const uri = recorder.uri;
@@ -317,12 +335,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}) {
     }
 
     try {
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-        interruptionMode: 'doNotMix',
-        shouldPlayInBackground: false,
-      });
+      await configureRecordingAudioMode();
       await recorder.prepareToRecordAsync();
       recorder.record({ forDuration: MAX_DURATION_SEC });
 
@@ -378,11 +391,15 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}) {
 
   const markPreviewReady = useCallback(() => {
     reset();
+    void restorePlaybackAudioMode().catch((err) => {
+      console.warn('Failed to restore playback audio mode after preview:', err);
+    });
   }, [reset]);
 
   useEffect(() => {
     return () => {
       clearMonitoring();
+      void restorePlaybackAudioMode().catch(() => {});
     };
   }, [clearMonitoring]);
 

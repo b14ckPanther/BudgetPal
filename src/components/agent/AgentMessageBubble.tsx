@@ -5,45 +5,85 @@
 
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
+import { Volume2, Square } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { AgentMessage } from '@/types/agent';
+import { t } from '@/lib/i18n';
 
 interface AgentMessageBubbleProps {
   message: AgentMessage;
   onPromptPress?: (prompt: string) => void;
   isLastMessage?: boolean;
+  voiceRepliesEnabled?: boolean;
+  spokenSummary?: string | null;
+  isSpeaking?: boolean;
+  onSpeakPress?: () => void;
+  onStopSpeakingPress?: () => void;
 }
 
 export function AgentMessageBubble({
   message,
   onPromptPress,
   isLastMessage = false,
+  voiceRepliesEnabled = false,
+  spokenSummary,
+  isSpeaking = false,
+  onSpeakPress,
+  onStopSpeakingPress,
 }: AgentMessageBubbleProps) {
   const { colors, radius, spacing } = useTheme();
   const isUser = message.role === 'user';
+  const canReplay = !isUser && voiceRepliesEnabled && !!spokenSummary?.trim();
 
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.agentContainer]}>
-      {/* Message Bubble */}
-      <View
-        style={[
-          styles.bubble,
-          isUser
-            ? [styles.userBubble, { backgroundColor: colors.primary, borderRadius: radius.lg }]
-            : [styles.agentBubble, { backgroundColor: colors.surfaceGlass, borderColor: colors.borderSoft, borderRadius: radius.lg }],
-        ]}
-      >
-        <Text
-          variant="body"
-          color={isUser ? colors.textInverse : colors.textPrimary}
-          style={styles.text}
+      <View style={styles.bubbleRow}>
+        <View
+          style={[
+            styles.bubble,
+            isUser
+              ? [styles.userBubble, { backgroundColor: colors.primary, borderRadius: radius.lg }]
+              : [styles.agentBubble, { backgroundColor: colors.surfaceGlass, borderColor: colors.borderSoft, borderRadius: radius.lg }],
+          ]}
         >
-          {message.content}
-        </Text>
+          <Text
+            variant="body"
+            color={isUser ? colors.textInverse : colors.textPrimary}
+            style={styles.text}
+          >
+            {message.content}
+          </Text>
+        </View>
+
+        {canReplay && (
+          <Pressable
+            onPress={isSpeaking ? onStopSpeakingPress : onSpeakPress}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isSpeaking ? t('agentSpeech.stopSpeaking') : t('agentSpeech.replay')
+            }
+            style={({ pressed }) => [
+              styles.speechButton,
+              {
+                backgroundColor: colors.surfaceGlass,
+                borderColor: colors.borderSoft,
+                borderRadius: radius.md,
+                marginLeft: spacing.xs,
+              },
+              pressed && { opacity: 0.75 },
+            ]}
+          >
+            {isSpeaking ? (
+              <Square size={14} color={colors.primary} fill={colors.primary} />
+            ) : (
+              <Volume2 size={16} color={colors.primary} />
+            )}
+          </Pressable>
+        )}
       </View>
 
-      {/* Suggested Prompts (Only show for agent role, if available and is the last message) */}
       {!isUser && isLastMessage && message.suggestedPrompts && message.suggestedPrompts.length > 0 && (
         <View style={[styles.promptsContainer, { marginTop: spacing.sm }]}>
           {message.suggestedPrompts.map((prompt, idx) => (
@@ -84,8 +124,13 @@ const styles = StyleSheet.create({
   agentContainer: {
     alignItems: 'flex-start',
   },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    maxWidth: '92%',
+  },
   bubble: {
-    maxWidth: '80%',
+    maxWidth: '88%',
     paddingHorizontal: 16,
     paddingVertical: 10,
     shadowColor: '#000',
@@ -93,6 +138,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  speechButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   userBubble: {
     borderBottomRightRadius: 2,
