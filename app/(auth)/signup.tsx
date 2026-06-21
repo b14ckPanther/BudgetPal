@@ -18,9 +18,9 @@ import { Screen, Text, Input, Button } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/dates';
 import { signUpWithEmail } from '@/services/auth';
+import { getApiBaseUrl } from '@/lib/apiFetch';
 import { useFeedback } from '@/components/feedback';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import Constants from 'expo-constants';
 
 export default function SignupScreen() {
   const { colors, spacing } = useTheme();
@@ -119,25 +119,11 @@ export default function SignupScreen() {
 
     const formattedDOB = selectedDate.toISOString().split('T')[0];
 
-    const getApiUrl = (): string => {
-      if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-        return process.env.EXPO_PUBLIC_API_BASE_URL;
-      }
-
-      const hostUri = Constants.expoConfig?.hostUri;
-      if (hostUri) {
-        const ip = hostUri.split(':')[0];
-        return `http://${ip}:8081`;
-      }
-
-      return 'http://localhost:8081';
-    };
-
     setLoading(true);
 
     // 4. Validate username availability first
     try {
-      const checkResponse = await fetch(`${getApiUrl()}/api/auth/check-username`, {
+      const checkResponse = await fetch(`${getApiBaseUrl()}/api/auth/check-username`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: normalizedUsername }),

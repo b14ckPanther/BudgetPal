@@ -9,6 +9,7 @@ Development-only guide for the **Noor** presentation demo (`noor@gmail.com`).
 | Email | `noor@gmail.com` |
 | Username | `noor` |
 | User UUID | `6e6f6f72-6465-4000-8000-000000000001` |
+| Presentation language | **English** (`preferred_language: en`) — Hebrew remains selectable in Settings |
 
 Password is **not** stored in the repo. Set `DEMO_NOOR_PASSWORD` in local `.env` only.
 
@@ -61,7 +62,7 @@ npm run demo-reset -- --confirm
 3. Agent tab has **empty** chat — start presentation fresh.
 4. Budget shows healthy / near-limit / over-budget categories.
 5. Activity shows 50+ confirmed transactions across sources.
-6. Reports history is empty — generate monthly report live during demo.
+6. Reports history is empty — generate monthly report live during demo (English PDF on EAS Hosting; **Hebrew PDF export is deferred** until separately validated).
 7. Scan a real receipt live for the receipt demo (seed receipt has metadata only, no image).
 
 ## Seeded presentation states (current cycle)

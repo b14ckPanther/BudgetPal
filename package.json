@@ -62,7 +62,10 @@
     "demo-reset": "node scripts/demo-reset.mjs",
     "demo-provision": "node scripts/demo-provision-noor.mjs",
     "demo-validate": "node scripts/demo-validate.mjs",
-    "validate:locales": "node scripts/validate-locale-parity.mjs"
+    "validate:locales": "node scripts/validate-locale-parity.mjs",
+    "smoke-test:staging": "node scripts/smoke-test-staging.mjs",
+    "validate:staging-pdf": "node scripts/validate-staging-pdf.mjs",
+    "validate:presentation-build": "node scripts/validate-presentation-build.mjs"
   },
   "private": true
 }

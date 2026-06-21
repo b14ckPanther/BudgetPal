@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 20.3.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "environment": "preview"
+    },
+    "production": {
+      "autoIncrement": true,
+      "environment": "production"
+    },
+    "presentation-android": {
+      "extends": "production",
+      "distribution": "internal",
+      "environment": "production",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "presentation-ios": {
+      "extends": "production",
+      "distribution": "store",
+      "environment": "production"
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

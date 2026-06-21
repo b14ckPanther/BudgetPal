@@ -6,8 +6,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../../types/database';
 import { loadUserContext } from '../agent/loadUserContext';
 import { computeReport } from './computeReport';
-import { generateReportNarrative } from './generateReportNarrative';
-import { renderReportPdf } from './renderReportPdf';
+import { generateReportNarrative, buildAgentReportSummary } from './generateReportNarrative';
 import { deleteReportPdf, uploadReportPdf } from './storageReportPdf';
 import { STALE_PENDING_MS } from './reportConfig';
 import type { ReportGenerateParams } from './reportTypes';
@@ -29,7 +28,7 @@ export interface PublicReportRow {
 export type ProcessReportResult =
   | { ok: true; report: PublicReportRow; reused: boolean }
   | { ok: false; noData: true; message: string }
-  | { ok: false; error: string; statusCode?: number };
+  | { ok: false; error: string; statusCode?: number; stage?: string };
 
 function toPublicRow(row: {
   id: string;
@@ -68,9 +67,12 @@ function toPublicRow(row: {
 async function failReport(
   supabase: SupabaseClient<Database>,
   reportId: string,
-  userId: string
+  userId: string,
+  hadPdf = false
 ): Promise<void> {
-  await deleteReportPdf(userId, reportId);
+  if (hadPdf) {
+    await deleteReportPdf(userId, reportId);
+  }
   await supabase
     .from('reports')
     .update({
@@ -119,14 +121,8 @@ export async function processReportGenerate(
   userId: string,
   params: ReportGenerateParams
 ): Promise<ProcessReportResult> {
-  await markStalePendingFailed(supabase, userId);
-
-  const { data: profileRow } = await supabase
-    .from('profiles')
-    .select('preferred_language')
-    .eq('id', userId)
-    .maybeSingle();
-  const skipPdfForHebrew = profileRow?.preferred_language === 'he';
+  const ctx = await loadUserContext(supabase, userId);
+  const skipPdfForHebrew = ctx.preferredLanguage === 'he';
 
   const existing = await resolveIdempotentRow(supabase, userId, params.idempotencyKey);
   if (existing) {
@@ -145,19 +141,24 @@ export async function processReportGenerate(
       await failReport(supabase, existing.id, userId);
     }
     if (existing.status === 'failed') {
-      await deleteReportPdf(userId, existing.id);
+      if (existing.file_url) {
+        await deleteReportPdf(userId, existing.id);
+      }
       await supabase.from('reports').delete().eq('id', existing.id).eq('user_id', userId);
     }
   }
 
-  const ctx = await loadUserContext(supabase, userId);
   const computed = computeReport(ctx, params);
 
   if (!computed.ok) {
     if ('noData' in computed && computed.noData) {
       return { ok: false, noData: true, message: computed.message };
     }
-    return { ok: false, error: ('error' in computed ? computed.error : undefined) || 'Could not build this report.' };
+    return {
+      ok: false,
+      error: ('error' in computed ? computed.error : undefined) || 'Could not build this report.',
+      stage: 'compute_failed',
+    };
   }
 
   const { report: computedReport } = computed;
@@ -191,52 +192,64 @@ export async function processReportGenerate(
         statusCode: 409,
       };
     }
-    return { ok: false, error: 'Could not start report generation. Please try again.' };
+    return {
+      ok: false,
+      error: 'Could not start report generation. Please try again.',
+      stage: reserveError?.message || 'reserve_failed',
+    };
   }
 
   const reportId = reserved.id;
+  let uploadedPdf = false;
 
   try {
-    const narrative = await generateReportNarrative(computedReport);
+    const skipAiNarrative = process.env.REPORT_SKIP_AI_NARRATIVE === '1';
+    const narrative = skipAiNarrative
+      ? buildAgentReportSummary(computedReport)
+      : await generateReportNarrative(computedReport);
     computedReport.summary = narrative.summary;
     computedReport.metrics.recommendations = narrative.recommendations;
 
     let filePath: string | null = null;
     if (params.includePdf !== false && !skipPdfForHebrew) {
+      const { renderReportPdf } = await import('./renderReportPdf');
       const pdfBuffer = await renderReportPdf(computedReport, narrative);
       filePath = await uploadReportPdf(userId, reportId, pdfBuffer);
+      uploadedPdf = true;
     }
 
-    const metricsPayload: ReportMetrics = {
-      totalIncome: computedReport.metrics.totalIncome,
-      totalExpenses: computedReport.metrics.totalExpenses,
-      netSavings: computedReport.metrics.netSavings,
-      safeToSpend: computedReport.metrics.safeToSpend,
-      safeToSpendNote: computedReport.metrics.safeToSpendNote,
-      categoryBreakdown: computedReport.metrics.categoryBreakdown.map((c) => ({
-        categoryName: c.categoryName,
-        amount: c.amount,
-        percentage: c.percentage,
-        limit: c.limit,
-        isOverBudget: c.isOverBudget,
-      })),
-      overBudgetCategories: computedReport.metrics.overBudgetCategories.map((c) => ({
-        categoryName: c.categoryName,
-        amount: c.amount,
-        percentage: c.percentage,
-        limit: c.limit,
-        isOverBudget: c.isOverBudget,
-      })),
-      largestTransactions: computedReport.metrics.largestTransactions,
-      topMerchants: computedReport.metrics.topMerchants,
-      recurringSignals: computedReport.metrics.recurringSignals,
-      trend: computedReport.metrics.trend,
-      recommendations: computedReport.metrics.recommendations,
-      hasData: true,
-      currency: computedReport.metrics.currency,
-      computedAt: computedReport.metrics.computedAt,
-      periodLabel: computedReport.range.label,
-    };
+    const metricsPayload: ReportMetrics = JSON.parse(
+      JSON.stringify({
+        totalIncome: computedReport.metrics.totalIncome,
+        totalExpenses: computedReport.metrics.totalExpenses,
+        netSavings: computedReport.metrics.netSavings,
+        safeToSpend: computedReport.metrics.safeToSpend,
+        safeToSpendNote: computedReport.metrics.safeToSpendNote,
+        categoryBreakdown: computedReport.metrics.categoryBreakdown.map((c) => ({
+          categoryName: c.categoryName,
+          amount: c.amount,
+          percentage: c.percentage,
+          limit: c.limit,
+          isOverBudget: c.isOverBudget,
+        })),
+        overBudgetCategories: computedReport.metrics.overBudgetCategories.map((c) => ({
+          categoryName: c.categoryName,
+          amount: c.amount,
+          percentage: c.percentage,
+          limit: c.limit,
+          isOverBudget: c.isOverBudget,
+        })),
+        largestTransactions: computedReport.metrics.largestTransactions,
+        topMerchants: computedReport.metrics.topMerchants,
+        recurringSignals: computedReport.metrics.recurringSignals,
+        trend: computedReport.metrics.trend,
+        recommendations: computedReport.metrics.recommendations,
+        hasData: true,
+        currency: computedReport.metrics.currency,
+        computedAt: computedReport.metrics.computedAt,
+        periodLabel: computedReport.range.label,
+      })
+    ) as ReportMetrics;
 
     const { data: updated, error: updateError } = await supabase
       .from('reports')
@@ -254,16 +267,21 @@ export async function processReportGenerate(
       .single();
 
     if (updateError || !updated) {
-      throw new Error('update_failed');
+      const detail = updateError?.message || 'no_row_returned';
+      console.error('[reports] update failed:', detail);
+      throw new Error(`update_failed:${detail}`);
     }
 
     return { ok: true, report: toPublicRow(updated), reused: false };
-  } catch {
-    await failReport(supabase, reportId, userId);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'unknown';
+    console.error('[reports] generate failed:', reason);
+    await failReport(supabase, reportId, userId, uploadedPdf);
     return {
       ok: false,
       error: 'Could not complete report generation. Please try again.',
       statusCode: 500,
+      stage: `generation_failed:${reason}`,
     };
   }
 }

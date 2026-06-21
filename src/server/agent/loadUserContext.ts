@@ -10,6 +10,7 @@ import { AnalysisTransaction } from './filterTransactions';
 export interface UserAgentContext {
   userId: string;
   currency: string;
+  preferredLanguage?: string | null;
   savingsGoal: number;
   categories: HierarchyCategory[];
   budget: {
@@ -29,7 +30,7 @@ export async function loadUserContext(
 ): Promise<UserAgentContext> {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('currency')
+    .select('currency, preferred_language')
     .eq('id', userId)
     .single();
 
@@ -88,6 +89,7 @@ export async function loadUserContext(
   return {
     userId,
     currency: profile?.currency || budgetRow?.currency || 'ILS',
+    preferredLanguage: profile?.preferred_language ?? null,
     savingsGoal: budgetRow?.savings_goal ? Number(budgetRow.savings_goal) : 0,
     categories: (categories || []).map((c) => ({
       id: c.id,

@@ -17,16 +17,31 @@ export class ApiRequestError extends Error {
   }
 }
 
+export class ApiConfigurationError extends Error {
+  constructor() {
+    super(
+      'EXPO_PUBLIC_API_BASE_URL is not configured for this release build. Set it in EAS environment variables before building.'
+    );
+    this.name = 'ApiConfigurationError';
+  }
+}
+
 export function getApiBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
+  const configured = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  if (configured) {
+    return configured.replace(/\/$/, '');
   }
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:8081`;
+
+  if (__DEV__) {
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const ip = hostUri.split(':')[0];
+      return `http://${ip}:8081`;
+    }
+    return 'http://localhost:8081';
   }
-  return 'http://localhost:8081';
+
+  throw new ApiConfigurationError();
 }
 
 async function getAccessToken(): Promise<string> {

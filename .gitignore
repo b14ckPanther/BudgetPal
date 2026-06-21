@@ -25,6 +25,7 @@ supabase/.branches/
 # ── Local dev / scratch scripts ────────────────────────────
 scratch_*.js
 scratch_*.ts
+scripts/.staging-report-sample.pdf
 
 # ── Native signing & keys ────────────────────────────────
 .kotlin/

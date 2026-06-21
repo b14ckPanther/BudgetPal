@@ -29,7 +29,15 @@ export async function POST(request: ExpoRequest): Promise<Response> {
       if ('statusCode' in result && result.statusCode === 409) {
         return apiErrorResponse('CONFLICT', 409);
       }
-      return apiErrorResponse('INTERNAL_ERROR', 422);
+      return Response.json(
+        {
+          error: {
+            code: 'INTERNAL_ERROR',
+            messageKey: 'errors.generic',
+          },
+        },
+        { status: 422 }
+      );
     }
 
     return Response.json({ report: result.report, reused: result.reused });

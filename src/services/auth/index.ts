@@ -1,19 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import Constants from 'expo-constants';
-
-const getApiUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
-  }
-
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:8081`;
-  }
-
-  return 'http://localhost:8081';
-};
+import { getApiBaseUrl } from '@/lib/apiFetch';
 
 export async function signUpWithEmail(
   email: string,
@@ -50,7 +36,7 @@ export async function signInWithIdentifier(identifier: string, password: string)
     return data;
   } else {
     const normalizedUsername = identifier.trim().toLowerCase();
-    const url = `${getApiUrl()}/api/auth/login`;
+    const url = `${getApiBaseUrl()}/api/auth/login`;
 
     const response = await fetch(url, {
       method: 'POST',

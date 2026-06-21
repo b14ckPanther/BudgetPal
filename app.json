@@ -11,7 +11,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.budgetpal.app",
       "infoPlist": {
-        "CFBundleLocalizations": ["en", "he"]
+        "CFBundleLocalizations": [
+          "en",
+          "he"
+        ]
       }
     },
     "android": {
@@ -20,10 +23,15 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png",
         "backgroundColor": "#080B12"
       },
-      "package": "com.budgetpal.app"
+      "package": "com.budgetpal.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
-      "output": "static",
+      "output": "server",
+      "bundler": "metro",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -60,6 +68,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "15c9f26e-16a3-41dc-96e3-ac8b99e5efae"
+      }
     }
   }
 }
