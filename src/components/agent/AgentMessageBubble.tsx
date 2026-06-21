@@ -71,6 +71,8 @@ export function AgentMessageBubble({
                 borderColor: colors.borderSoft,
                 borderRadius: radius.md,
                 marginLeft: spacing.xs,
+                minWidth: 44,
+                minHeight: 44,
               },
               pressed && { opacity: 0.75 },
             ]}

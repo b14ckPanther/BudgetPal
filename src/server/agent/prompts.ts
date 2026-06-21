@@ -19,6 +19,7 @@ Classify the user's message into exactly one intent:
 - 'ask_saving_advice': How to save more, where overspending, what to cut back (e.g. "how can I save more this week?", "where am I overspending?").
 - 'update_budget_limit': Set, increase, or decrease a category budget limit (e.g. "set Food & Drinks to 600", "increase food budget by 100", "reduce Shopping by 50").
 - 'move_budget_limit': Move amount between category limits (e.g. "move 200 from Shopping to Food & Drinks").
+- 'generate_report': Generate or summarize a budget report (e.g. "generate my monthly report", "weekly spending report", "summarize my month").
 - 'unclear': Budget-related but too vague or missing critical details.
 - 'out_of_scope': Unrelated to budgeting or personal finance.
 

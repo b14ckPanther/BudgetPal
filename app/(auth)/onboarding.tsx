@@ -56,7 +56,7 @@ export default function OnboardingScreen() {
           cycleStartDay: 1,
         });
 
-        router.replace('/(tabs)/agent');
+        router.replace('/');
       } catch (err: unknown) {
         if (__DEV__) console.error('Onboarding failed:', err);
         toast({ variant: 'error', message: t('feedback.onboardingFailed') });

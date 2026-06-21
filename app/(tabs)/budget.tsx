@@ -16,6 +16,7 @@ import {
 import { Calendar, PenLine, Plus, AlertTriangle } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, MoneyAmount, ProgressBar, Input, Button } from '@/components/ui';
+import { ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
 import { t } from '@/lib/i18n';
 import { useFeedback } from '@/components/feedback';
 import { formatCurrency } from '@/lib/currency';
@@ -88,12 +89,7 @@ export default function BudgetScreen() {
   if (isLoading) {
     return (
       <Screen backgroundVariant="hero">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.md }}>
-            Loading your budget configurations...
-          </Text>
-        </View>
+        <ScreenLoadingState message={t('states.budgetLoading')} />
       </Screen>
     );
   }
@@ -101,18 +97,12 @@ export default function BudgetScreen() {
   if (isError || !budget || !summary) {
     return (
       <Screen backgroundVariant="hero">
-        <ScrollView
-          contentContainerStyle={styles.loadingContainer}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
-        >
-          <AlertTriangle size={48} color={colors.danger} />
-          <Text variant="h3" style={{ marginTop: spacing.md }} color={colors.textPrimary}>
-            Failed to load active budget
-          </Text>
-          <Text variant="bodySmall" color={colors.textMuted} align="center" style={{ marginTop: spacing.xs, marginHorizontal: spacing.xl }}>
-            Please make sure you have completed the onboarding flow and pull down to refresh.
-          </Text>
-        </ScrollView>
+        <ScreenErrorState
+          title={t('states.budgetLoadFailedTitle')}
+          message={t('states.budgetLoadFailedMessage')}
+          onRetry={() => void refetch()}
+          onRefresh={() => void refetch()}
+        />
       </Screen>
     );
   }

@@ -172,6 +172,49 @@ export async function handleAgentIntent(
     return { agentResponseContent, cards, actions, suggestedPrompts };
   }
 
+  if (intent === 'generate_report') {
+    const { parseAgentReportParams } = await import('./parseReportRequest');
+    const { computeReportPreview } = await import('../reports/processReportGenerate');
+    const params = parseAgentReportParams(message);
+    const preview = await computeReportPreview(supabase, userId, {
+      type: params.type,
+      categoryTerms: params.categoryTerms,
+      merchantTerms: params.merchantTerms,
+      comparePrevious: params.comparePrevious,
+    });
+
+    if (!preview.ok) {
+      if ('noData' in preview && preview.noData) {
+        agentResponseContent = preview.message;
+      } else if ('error' in preview) {
+        agentResponseContent = preview.error || 'I could not build that report preview.';
+      } else {
+        agentResponseContent = 'I could not build that report preview.';
+      }
+      suggestedPrompts = ['Generate monthly report', 'Weekly report', 'Open Reports tab'];
+      return { agentResponseContent, cards, actions, suggestedPrompts };
+    }
+
+    const r = preview.report;
+    agentResponseContent =
+      'Here is a concise report preview from your confirmed transactions. Open the Reports tab to export a PDF when you are ready.';
+    cards.push({
+      type: 'report',
+      title: r.title,
+      data: {
+        period: r.range.label,
+        totalIncome: r.metrics.totalIncome,
+        totalExpenses: r.metrics.totalExpenses,
+        netSavings: r.metrics.netSavings,
+        summary: r.summary,
+        recommendations: r.metrics.recommendations,
+        exportHint: true,
+      },
+    });
+    suggestedPrompts = ['Open Reports to export PDF', 'Generate weekly report', 'Category spending report'];
+    return { agentResponseContent, cards, actions, suggestedPrompts };
+  }
+
   const ctx = await loadUserContext(supabase, userId);
 
   if (intent === 'ask_spending_analysis') {

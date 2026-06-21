@@ -1,23 +1,9 @@
-import Constants from 'expo-constants';
 import { supabase } from '@/lib/supabase';
 import { VoiceEntry } from '@/types/api';
 import { AgentResponse } from '@/types/agent';
 import { Database } from '@/types/database';
 import { mapVoiceEntry } from '../mapper';
-
-const getApiUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
-  }
-
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:8081`;
-  }
-
-  return 'http://localhost:8081';
-};
+import { apiFetch } from '@/lib/apiFetch';
 
 export async function transcribeVoiceAudio(
   uri: string,
@@ -29,14 +15,6 @@ export async function transcribeVoiceAudio(
     throw new Error('No speech was detected in this recording. Please try again.');
   }
 
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session) {
-    throw new Error('User session not found');
-  }
-
-  const token = sessionData.session.access_token;
-  const url = `${getApiUrl()}/api/voice/transcribe`;
-
   const extension = mimeType.includes('webm') ? 'webm' : 'm4a';
   const formData = new FormData();
   formData.append('audio', {
@@ -47,26 +25,10 @@ export async function transcribeVoiceAudio(
   formData.append('durationMs', String(Math.round(durationMs)));
   formData.append('speechDetected', speechDetected ? 'true' : 'false');
 
-  const response = await fetch(url, {
+  return apiFetch<AgentResponse & { transcription?: string }>('/api/voice/transcribe', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     body: formData,
   });
-
-  let resBody: { error?: string } & Partial<AgentResponse> = {};
-  try {
-    resBody = await response.json();
-  } catch {
-    throw new Error('We could not transcribe your recording. Please try again.');
-  }
-
-  if (!response.ok || resBody.error) {
-    throw new Error(resBody.error || 'We could not transcribe your recording. Please try again.');
-  }
-
-  return resBody as AgentResponse & { transcription?: string };
 }
 
 export async function createVoiceEntry(entry: Partial<VoiceEntry>): Promise<VoiceEntry> {

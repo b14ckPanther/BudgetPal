@@ -146,7 +146,8 @@ export interface Report {
   dateTo: string;
   summary: string;
   metrics: ReportMetrics;
-  fileUrl?: string;
+  status?: 'pending' | 'ready' | 'failed';
+  hasPdf?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -155,8 +156,42 @@ export interface ReportMetrics {
   totalIncome: number;
   totalExpenses: number;
   netSavings: number;
+  safeToSpend?: number | null;
+  safeToSpendNote?: string;
   categoryBreakdown: CategoryBreakdown[];
+  overBudgetCategories?: CategoryBreakdown[];
+  largestTransactions?: LargestTransactionSummary[];
   topMerchants: MerchantSummary[];
+  recurringSignals?: RecurringSignalSummary[];
+  trend?: ReportTrendSummary;
+  recommendations?: string[];
+  hasData?: boolean;
+  currency?: string;
+  computedAt?: string;
+  periodLabel?: string;
+}
+
+export interface LargestTransactionSummary {
+  id: string;
+  merchant: string;
+  amount: number;
+  date: string;
+  categoryLabel: string;
+}
+
+export interface RecurringSignalSummary {
+  merchant: string;
+  amount: number;
+  occurrences: number;
+  note: string;
+}
+
+export interface ReportTrendSummary {
+  previousPeriodLabel: string;
+  previousExpenses: number;
+  previousIncome: number;
+  expenseChangeAmount: number;
+  expenseChangePercent: number;
 }
 
 export interface CategoryBreakdown {

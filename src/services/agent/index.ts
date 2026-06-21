@@ -2,21 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { AgentMessage, AgentAction, ActionStatus, AgentResponse } from '@/types/agent';
 import { Database } from '@/types/database';
 import { mapAgentMessage, mapAgentAction } from '../mapper';
-import Constants from 'expo-constants';
-
-const getApiUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-    return process.env.EXPO_PUBLIC_API_BASE_URL;
-  }
-
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:8081`;
-  }
-
-  return 'http://localhost:8081';
-};
+import { apiFetch } from '@/lib/apiFetch';
 
 /**
  * Fetch all agent messages for the current user, ordered by creation time.
@@ -43,30 +29,10 @@ export async function getAgentMessages(): Promise<AgentMessage[]> {
  * Send a message to the agent API endpoint.
  */
 export async function sendMessageToAgent(message: string): Promise<AgentResponse> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session) {
-    throw new Error('User session not found');
-  }
-
-  const token = sessionData.session.access_token;
-  const url = `${getApiUrl()}/api/agent/message`;
-
-  const response = await fetch(url, {
+  return apiFetch<AgentResponse>('/api/agent/message', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({ message }),
   });
-
-  const resBody = await response.json();
-
-  if (!response.ok || resBody.error) {
-    throw new Error(resBody.error || 'Failed to communicate with agent');
-  }
-
-  return resBody as AgentResponse;
 }
 
 /**
@@ -75,94 +41,35 @@ export async function sendMessageToAgent(message: string): Promise<AgentResponse
 export async function confirmAgentAction(
   actionId: string,
   overrides?: Record<string, unknown>
-): Promise<any> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session) {
-    throw new Error('User session not found');
-  }
-
-  const token = sessionData.session.access_token;
-  const url = `${getApiUrl()}/api/agent/confirm-action`;
-
-  const response = await fetch(url, {
+): Promise<unknown> {
+  return apiFetch('/api/agent/confirm-action', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({
       actionId,
       action: 'confirm',
       ...(overrides ? { overrides } : {}),
     }),
   });
-
-  const resBody = await response.json();
-
-  if (!response.ok || resBody.error) {
-    throw new Error(resBody.error || 'Failed to confirm action');
-  }
-
-  return resBody;
 }
 
 /**
  * Cancel a proposed agent action.
  */
-export async function cancelAgentAction(actionId: string): Promise<any> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session) {
-    throw new Error('User session not found');
-  }
-
-  const token = sessionData.session.access_token;
-  const url = `${getApiUrl()}/api/agent/confirm-action`;
-
-  const response = await fetch(url, {
+export async function cancelAgentAction(actionId: string): Promise<unknown> {
+  return apiFetch('/api/agent/confirm-action', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({
       actionId,
       action: 'cancel',
     }),
   });
-
-  const resBody = await response.json();
-
-  if (!response.ok || resBody.error) {
-    throw new Error(resBody.error || 'Failed to cancel action');
-  }
-
-  return resBody;
 }
 
 /**
  * Clear authenticated user's agent chat history and pending proposals.
  */
 export async function clearAgentHistory(): Promise<void> {
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !sessionData?.session) {
-    throw new Error('User session not found');
-  }
-
-  const token = sessionData.session.access_token;
-  const url = `${getApiUrl()}/api/agent/clear-history`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const resBody = await response.json();
-
-  if (!response.ok || resBody.error) {
-    throw new Error(resBody.error || 'Could not clear chat history. Please try again.');
-  }
+  await apiFetch('/api/agent/clear-history', { method: 'POST' });
 }
 
 /**

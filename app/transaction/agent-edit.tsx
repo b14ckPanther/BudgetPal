@@ -24,6 +24,8 @@ import { formatDate } from '@/lib/dates';
 import { useCategories, useCurrentBudget } from '@/hooks/useBudgetQueries';
 import { confirmAgentAction } from '@/services/agent';
 import { useFeedback } from '@/components/feedback';
+import { getUserFacingMessage } from '@/lib/apiErrors';
+import { invalidateAfterAgentConfirm } from '@/lib/queryInvalidation';
 
 type TxType = 'expense' | 'income' | 'transfer';
 
@@ -126,7 +128,7 @@ export default function AgentEditTransactionScreen() {
         note: note.trim() || null,
       });
 
-      queryClient.invalidateQueries();
+      invalidateAfterAgentConfirm(queryClient, budget?.id);
       toast({
         variant: 'success',
         message: isReceiptEdit ? t('feedback.receiptTransactionSaved') : t('feedback.voiceTransactionSaved'),
@@ -134,7 +136,7 @@ export default function AgentEditTransactionScreen() {
       router.back();
     } catch (err: unknown) {
       if (__DEV__) console.error('Agent edit confirm failed:', err);
-      toast({ variant: 'error', message: t('feedback.editSaveFailed') });
+      toast({ variant: 'error', message: getUserFacingMessage(err) });
     } finally {
       setLoading(false);
     }

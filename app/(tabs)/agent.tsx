@@ -34,11 +34,12 @@ import { TransactionPreviewCard } from '@/components/cards/TransactionPreviewCar
 import { VoicePreviewCard } from '@/components/cards/VoicePreviewCard';
 import { ReceiptPreviewCard } from '@/components/cards/ReceiptPreviewCard';
 import { SpendingAnalysisCard } from '@/components/cards/SpendingAnalysisCard';
+import { ReportCard } from '@/components/cards/ReportCard';
 import { AffordabilityCard } from '@/components/cards/AffordabilityCard';
 import { SavingAdviceCard } from '@/components/cards/SavingAdviceCard';
 import { BudgetLimitProposalCard } from '@/components/cards/BudgetLimitProposalCard';
 import { t } from '@/lib/i18n';
-import { useCurrentProfile, useBudgetSummary, useTransactions } from '@/hooks/useBudgetQueries';
+import { useCurrentProfile, useBudgetSummary, useTransactions, useCurrentBudget } from '@/hooks/useBudgetQueries';
 import { useAgentChatScroll } from '@/hooks/useAgentChatScroll';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { formatCurrency } from '@/lib/currency';
@@ -51,8 +52,32 @@ import { useAgentSpeech } from '@/hooks/useAgentSpeech';
 import { useReceiptScan } from '@/hooks/useReceiptScan';
 import { hapticPreviewReady, hapticVoiceError } from '@/lib/voiceFeedback';
 import { buildAgentSpeakableSummary } from '@/lib/agentSpeakableSummary';
-import { useFeedback } from '@/components/feedback';
+import { useFeedback, ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
 import { AgentMessage, AgentResponse } from '@/types/agent';
+import { ApiRequestError } from '@/lib/apiFetch';
+import { getUserFacingMessage } from '@/lib/apiErrors';
+import { invalidateAfterAgentConfirm, invalidateAfterClearHistory } from '@/lib/queryInvalidation';
+
+const PENDING_CARD_TYPES = new Set([
+  'transaction_preview',
+  'voice_preview',
+  'receipt_preview',
+  'budget_limit_proposal',
+]);
+
+function hasPendingAgentProposals(
+  msgs: AgentMessage[],
+  processed: Record<string, 'confirmed' | 'cancelled'>
+): boolean {
+  return msgs.some((msg) =>
+    msg.cards?.some((card) => {
+      if (!PENDING_CARD_TYPES.has(card.type)) return false;
+      const actionId = (card.data as Record<string, unknown>)?.actionId as string | undefined;
+      if (!actionId) return false;
+      return !processed[actionId];
+    })
+  );
+}
 
 export default function AgentScreen() {
   const { colors, spacing, radius } = useTheme();
@@ -62,6 +87,7 @@ export default function AgentScreen() {
 
   // Queries
   const { data: profile, isLoading: isProfileLoading } = useCurrentProfile();
+  const { data: budget } = useCurrentBudget();
   const { data: summary, isLoading: isSummaryLoading, isError: isSummaryError, refetch } = useBudgetSummary();
   const { data: txs, isLoading: isTxLoading } = useTransactions();
 
@@ -221,6 +247,7 @@ export default function AgentScreen() {
 
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
+    stopSpeaking();
     prepareForOutgoingMessage();
     setInputValue('');
 
@@ -264,18 +291,18 @@ export default function AgentScreen() {
       queueAgentAutoplay(agentMsgId, spokenSummary ?? null);
     } catch (err: unknown) {
       console.error('Failed to send message to agent:', err);
-      toast({ variant: 'error', message: t('feedback.sendMessageFailed') });
-      
-      // Add error system/agent message
+      toast({ variant: 'error', message: getUserFacingMessage(err) });
+
       const errorMsgId = `error-${Date.now()}`;
+      const errorContent = t('agent.sendErrorBubble');
       const spokenSummary = resolveSpokenSummary(
-        { content: "Sorry, I encountered an error. Please try again." },
+        { content: errorContent },
         'error'
       );
       const errorMsg: AgentMessage = {
         id: errorMsgId,
         role: 'agent',
-        content: "Sorry, I encountered an error. Please try again.",
+        content: errorContent,
         spokenSummary: spokenSummary ?? undefined,
         createdAt: new Date().toISOString(),
       };
@@ -300,10 +327,10 @@ export default function AgentScreen() {
         }
       }
 
-      queryClient.invalidateQueries();
+      invalidateAfterAgentConfirm(queryClient, budget?.id);
     } catch (err: unknown) {
       console.error('Failed to confirm agent action:', err);
-      toast({ variant: 'error', message: t('feedback.actionConfirmFailed') });
+      toast({ variant: 'error', message: getUserFacingMessage(err) });
     }
   };
 
@@ -322,7 +349,7 @@ export default function AgentScreen() {
       }
     } catch (err: unknown) {
       console.error('Failed to cancel agent action:', err);
-      toast({ variant: 'error', message: t('feedback.actionCancelFailed') });
+      toast({ variant: 'error', message: getUserFacingMessage(err) });
     }
   };
 
@@ -495,7 +522,7 @@ export default function AgentScreen() {
 
       voiceRecorder.markPreviewReady();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t('voice.transcribeFailed');
+      const message = getUserFacingMessage(err);
       await hapticVoiceError();
       voiceRecorder.setFailed(message);
     } finally {
@@ -539,6 +566,11 @@ export default function AgentScreen() {
   };
 
   const handleClearChat = async () => {
+    if (hasPendingAgentProposals(messages, processedActions)) {
+      toast({ variant: 'warning', message: t('agent.clearHistoryBlocked') });
+      return;
+    }
+
     const confirmed = await confirm({
       title: t('agent.clearHistoryTitle'),
       message: t('agent.clearHistoryMessage'),
@@ -552,10 +584,14 @@ export default function AgentScreen() {
       setMessages([]);
       setProcessedActions({});
       prepareForOutgoingMessage();
-      queryClient.invalidateQueries();
+      invalidateAfterClearHistory(queryClient);
       toast({ variant: 'success', message: t('feedback.historyCleared') });
-    } catch {
-      toast({ variant: 'error', message: t('agent.clearHistoryError') });
+    } catch (err: unknown) {
+      if (err instanceof ApiRequestError && err.parsed.code === 'CLEAR_HISTORY_PENDING') {
+        toast({ variant: 'warning', message: t('agent.clearHistoryBlocked') });
+        return;
+      }
+      toast({ variant: 'error', message: getUserFacingMessage(err) });
     }
   };
 
@@ -570,7 +606,7 @@ export default function AgentScreen() {
     } else if (actionKey === 'canIAfford') {
       setInputValue('Can I afford ');
     } else if (actionKey === 'generateReport') {
-      toast({ variant: 'info', message: t('feedback.reportsComingSoon') });
+      router.push('/(tabs)/reports');
     }
   };
 
@@ -716,6 +752,22 @@ export default function AgentScreen() {
                 observation={data.observation as string}
                 actions={(data.actions as string[]) || []}
                 empty={data.empty as boolean}
+              />
+            </View>
+          );
+        }
+
+        if (card.type === 'report') {
+          return (
+            <View key={cardKey} style={{ marginVertical: spacing.sm }}>
+              <ReportCard
+                title={card.title}
+                period={data.period as string}
+                totalIncome={data.totalIncome as number}
+                totalExpenses={data.totalExpenses as number}
+                netSavings={data.netSavings as number}
+                summary={data.summary as string}
+                onPress={() => router.push('/(tabs)/reports')}
               />
             </View>
           );
@@ -961,12 +1013,7 @@ export default function AgentScreen() {
   if (isLoading) {
     return (
       <Screen backgroundVariant="hero">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.md }}>
-            Waking up your personal budget agent...
-          </Text>
-        </View>
+        <ScreenLoadingState message={t('states.agentLoading')} />
       </Screen>
     );
   }
@@ -974,20 +1021,12 @@ export default function AgentScreen() {
   if (isSummaryError) {
     return (
       <Screen backgroundVariant="hero">
-        <ScrollView
-          contentContainerStyle={styles.loadingContainer}
-          refreshControl={
-            <RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />
-          }
-        >
-          <AlertTriangle size={48} color={colors.danger} />
-          <Text variant="h3" style={{ marginTop: spacing.md }} color={colors.textPrimary}>
-            Unable to load your agent data
-          </Text>
-          <Text variant="bodySmall" color={colors.textMuted} align="center" style={{ marginTop: spacing.xs, marginHorizontal: spacing.xl }}>
-            Please check your connection and pull down to refresh.
-          </Text>
-        </ScrollView>
+        <ScreenErrorState
+          title={t('states.agentLoadFailedTitle')}
+          message={t('states.agentLoadFailedMessage')}
+          onRetry={() => void refetch()}
+          onRefresh={() => void refetch()}
+        />
       </Screen>
     );
   }

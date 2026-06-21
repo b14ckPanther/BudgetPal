@@ -135,7 +135,7 @@ export function mapReport(db: DBReport): Report {
     id: db.id,
     userId: db.user_id,
     title: db.title,
-    type: db.type as 'weekly' | 'monthly' | 'custom' | 'category' | 'merchant' | 'trend',
+    type: db.type as Report['type'],
     dateFrom: db.date_from || '',
     dateTo: db.date_to || '',
     summary: db.summary || '',
@@ -146,7 +146,8 @@ export function mapReport(db: DBReport): Report {
       categoryBreakdown: [],
       topMerchants: [],
     },
-    fileUrl: db.file_url || undefined,
+    status: (db.status as Report['status']) || 'ready',
+    hasPdf: !!db.file_url && db.status === 'ready',
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

@@ -21,6 +21,8 @@ interface AgentInputBarProps {
   onChangeText?: (text: string) => void;
 }
 
+const ICON_HIT = { minWidth: 44, minHeight: 44, alignItems: 'center' as const, justifyContent: 'center' as const };
+
 export function AgentInputBar({
   onSend,
   onMicPress,
@@ -64,6 +66,7 @@ export function AgentInputBar({
           opacity: isInteractionDisabled ? 0.7 : 1,
         },
       ]}
+      accessibilityRole="none"
     >
       <TextInput
         value={text}
@@ -75,6 +78,8 @@ export function AgentInputBar({
         scrollEnabled
         blurOnSubmit={false}
         textAlignVertical="center"
+        accessibilityLabel={t('agent.inputPlaceholder')}
+        accessibilityHint={t('agent.inputPlaceholder')}
         style={[
           styles.input,
           {
@@ -89,35 +94,43 @@ export function AgentInputBar({
       />
 
       <View style={styles.actions}>
-        <Pressable 
-          onPress={isInteractionDisabled ? undefined : onAttachPress} 
-          style={styles.actionBtn} 
-          hitSlop={8}
+        <Pressable
+          onPress={isInteractionDisabled ? undefined : onAttachPress}
+          style={ICON_HIT}
+          hitSlop={4}
           disabled={isInteractionDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={t('receipt.chooseLibrary')}
         >
           <Paperclip size={20} color={colors.textMuted} />
         </Pressable>
-        <Pressable 
-          onPress={isInteractionDisabled ? undefined : onCameraPress} 
-          style={styles.actionBtn} 
-          hitSlop={8}
+        <Pressable
+          onPress={isInteractionDisabled ? undefined : onCameraPress}
+          style={ICON_HIT}
+          hitSlop={4}
           disabled={isInteractionDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={t('receipt.scanTitle')}
+          accessibilityHint={t('agent.quickActions.scanReceipt')}
         >
           <Camera size={20} color={colors.textMuted} />
         </Pressable>
         {loading ? (
-          <View style={styles.actionBtn}>
+          <View style={ICON_HIT} accessibilityLabel={t('agent.agentThinking')}>
             <ActivityIndicator size="small" color={colors.primary} />
           </View>
         ) : (
           <Pressable
             onPress={isInteractionDisabled ? undefined : onMicPress}
             style={[
-              styles.actionBtn,
-              voiceActive && { backgroundColor: colors.primarySoft, borderRadius: 14 },
+              ICON_HIT,
+              voiceActive && { backgroundColor: colors.primarySoft, borderRadius: 22 },
             ]}
-            hitSlop={8}
+            hitSlop={4}
             disabled={isInteractionDisabled}
+            accessibilityRole="button"
+            accessibilityLabel={t('agent.quickActions.voiceExpense')}
+            accessibilityState={{ selected: voiceActive }}
           >
             <Mic size={20} color={voiceActive ? colors.primary : colors.primary} />
           </Pressable>
@@ -126,8 +139,10 @@ export function AgentInputBar({
           <Pressable
             onPress={handleSend}
             style={[styles.sendBtn, { backgroundColor: colors.primary }]}
-            hitSlop={8}
+            hitSlop={4}
             disabled={isInteractionDisabled}
+            accessibilityRole="button"
+            accessibilityLabel={t('agent.sendMessage')}
           >
             <Send size={16} color={colors.textInverse} />
           </Pressable>
@@ -151,18 +166,12 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-  },
-  actionBtn: {
-    padding: 4,
-    minWidth: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
   },
   sendBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

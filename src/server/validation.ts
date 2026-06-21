@@ -15,6 +15,7 @@ export const AgentIntentSchema = z.enum([
   'ask_saving_advice',
   'update_budget_limit',
   'move_budget_limit',
+  'generate_report',
   'unclear',
   'out_of_scope',
 ]);
@@ -168,3 +169,32 @@ export const AffordabilityVerdictSchema = z.enum([
 ]);
 
 export type AffordabilityVerdict = z.infer<typeof AffordabilityVerdictSchema>;
+
+// ── Report generation ──────────────────────────────────────
+export const ReportTypeSchema = z.enum([
+  'weekly',
+  'monthly',
+  'custom',
+  'category',
+  'merchant',
+  'trend',
+]);
+
+export const ReportGenerateRequestSchema = z.object({
+  type: ReportTypeSchema,
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  categoryId: z.string().uuid().optional(),
+  categoryTerms: z.array(z.string()).optional(),
+  merchantTerms: z.array(z.string()).optional(),
+  comparePrevious: z.boolean().optional(),
+  includePdf: z.boolean().optional(),
+  idempotencyKey: z.string().uuid(),
+});
+
+export type ReportGenerateRequest = z.infer<typeof ReportGenerateRequestSchema>;
+
+export const ReportNarrativeOutputSchema = z.object({
+  summary: z.string().min(1).max(600),
+  recommendations: z.array(z.string().min(1).max(200)).min(1).max(3),
+});

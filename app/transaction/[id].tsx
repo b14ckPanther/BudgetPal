@@ -28,7 +28,7 @@ import {
   useUpdateTransaction,
   useSoftDeleteTransaction,
 } from '@/hooks/useBudgetQueries';
-import { useFeedback } from '@/components/feedback';
+import { useFeedback, ScreenLoadingState } from '@/components/feedback';
 
 type TxType = 'expense' | 'income' | 'transfer';
 
@@ -209,14 +209,23 @@ export default function TransactionDetailScreen() {
     }
   };
 
-  if (isTxLoading || !transaction) {
+  if (isTxLoading) {
     return (
       <Screen>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.md }}>
-            Loading transaction details...
+        <ScreenLoadingState message={t('states.transactionLoading')} />
+      </Screen>
+    );
+  }
+
+  if (!transaction) {
+    return (
+      <Screen>
+        <View style={[styles.loadingContainer, { paddingHorizontal: spacing.xl }]}>
+          <Text variant="h3" align="center">{t('states.transactionNotFoundTitle')}</Text>
+          <Text variant="bodySmall" color={colors.textMuted} align="center" style={{ marginTop: spacing.sm }}>
+            {t('states.transactionNotFoundMessage')}
           </Text>
+          <Button label={t('common.back')} onPress={() => router.back()} style={{ marginTop: spacing.xl }} />
         </View>
       </Screen>
     );
@@ -230,13 +239,23 @@ export default function TransactionDetailScreen() {
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.borderSoft }]}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
             <ArrowLeft size={20} color={colors.textPrimary} />
           </Pressable>
           <Text variant="h2" style={{ flex: 1, textAlign: 'center' }}>
             Edit Transaction
           </Text>
-          <Pressable onPress={handleDelete} style={styles.deleteButton}>
+          <Pressable
+            onPress={handleDelete}
+            style={styles.deleteButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.delete')}
+          >
             <Trash2 size={20} color={colors.danger} />
           </Pressable>
         </View>

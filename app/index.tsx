@@ -1,37 +1,92 @@
+/**
+ * Race-safe bootstrap — resolves session and onboarding before any tab flash.
+ */
+
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
 import { Redirect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { resolveAuthDestination, AuthDestination } from '@/lib/authRouting';
+import { resetSessionRecoveryGuard } from '@/lib/sessionRecovery';
+import { useTheme } from '@/theme';
+import { Screen } from '@/components/ui';
+import { ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
+import { t } from '@/lib/i18n';
+
+type BootstrapPhase = 'loading' | 'ready' | 'error';
 
 export default function Index() {
-  const [loading, setLoading] = useState(true);
-  const [hasSession, setHasSession] = useState(false);
+  const { colors } = useTheme();
+  const [phase, setPhase] = useState<BootstrapPhase>('loading');
+  const [destination, setDestination] = useState<AuthDestination>('login');
+
+  const resolve = async () => {
+    setPhase('loading');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const result = await resolveAuthDestination(session);
+      setDestination(result.destination);
+      setPhase('ready');
+    } catch {
+      setDestination('profile_error');
+      setPhase('error');
+    }
+  };
 
   useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setHasSession(!!session);
-      setLoading(false);
-    });
+    let active = true;
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setHasSession(!!session);
-      setLoading(false);
+    const boot = async () => {
+      await resolve();
+    };
+
+    void boot();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (!active) return;
+      if (event === 'SIGNED_OUT') {
+        resetSessionRecoveryGuard();
+        setDestination('login');
+        setPhase('ready');
+        return;
+      }
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        void resolve();
+      }
     });
 
     return () => {
+      active = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  if (loading) {
+  if (phase === 'loading') {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0A0E1A' }}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-      </View>
+      <Screen edges={['top', 'bottom']} style={{ backgroundColor: colors.background }}>
+        <ScreenLoadingState message={t('states.bootstrapLoading')} />
+      </Screen>
     );
   }
 
-  return hasSession ? <Redirect href="/(tabs)/agent" /> : <Redirect href="/(auth)/login" />;
+  if (phase === 'error' || destination === 'profile_error') {
+    return (
+      <Screen edges={['top', 'bottom']} style={{ backgroundColor: colors.background }}>
+        <ScreenErrorState
+          title={t('states.profileLoadFailedTitle')}
+          message={t('states.profileLoadFailedMessage')}
+          onRetry={() => void resolve()}
+        />
+      </Screen>
+    );
+  }
+
+  if (destination === 'login') {
+    return <Redirect href="/(auth)/login" />;
+  }
+
+  if (destination === 'onboarding') {
+    return <Redirect href="/(auth)/onboarding" />;
+  }
+
+  return <Redirect href="/(tabs)/agent" />;
 }

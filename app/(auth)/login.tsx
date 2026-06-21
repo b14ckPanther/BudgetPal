@@ -31,7 +31,7 @@ export default function LoginScreen() {
       const data = await signInWithIdentifier(identifier.trim(), password);
 
       if (data?.user) {
-        router.replace('/(tabs)/agent');
+        router.replace('/');
       } else {
         toast({ variant: 'error', message: t('feedback.loginFailed') });
       }

@@ -7,7 +7,7 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/theme';
 import { colors } from '@/theme/colors';
-import { FeedbackProvider } from '@/components/feedback';
+import { FeedbackProvider, SessionRecoveryBootstrap } from '@/components/feedback';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient({
@@ -24,6 +24,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <FeedbackProvider>
+          <SessionRecoveryBootstrap />
           <Stack
             screenOptions={{
               headerShown: false,

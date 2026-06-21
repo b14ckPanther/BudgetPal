@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, Button } from '@/components/ui';
+import { ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
 import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { useCurrentProfile, useCurrentBudget, queryKeys } from '@/hooks/useBudgetQueries';
@@ -165,12 +166,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <Screen backgroundVariant="hero">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.md }}>
-            Loading your profile preferences...
-          </Text>
-        </View>
+        <ScreenLoadingState message={t('states.profileScreenLoading')} />
       </Screen>
     );
   }
@@ -178,18 +174,12 @@ export default function ProfileScreen() {
   if (isError || !profile) {
     return (
       <Screen backgroundVariant="hero">
-        <ScrollView
-          contentContainerStyle={styles.loadingContainer}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor={colors.primary} />}
-        >
-          <AlertTriangle size={48} color={colors.danger} />
-          <Text variant="h3" style={{ marginTop: spacing.md }} color={colors.textPrimary}>
-            Unable to load profile
-          </Text>
-          <Text variant="bodySmall" color={colors.textMuted} align="center" style={{ marginTop: spacing.xs, marginHorizontal: spacing.xl }}>
-            Please pull down to refresh.
-          </Text>
-        </ScrollView>
+        <ScreenErrorState
+          title={t('states.profileScreenLoadFailedTitle')}
+          message={t('states.profileScreenLoadFailedMessage')}
+          onRetry={onRefresh}
+          onRefresh={onRefresh}
+        />
       </Screen>
     );
   }
@@ -265,7 +255,7 @@ export default function ProfileScreen() {
         <SettingRow
           icon={<Languages size={18} color={colors.textSecondary} />}
           label={t('profile.language')}
-          value="English Only"
+          value="English"
         />
         <SettingRow
           icon={<Gauge size={18} color={colors.textSecondary} />}

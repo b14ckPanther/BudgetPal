@@ -419,6 +419,10 @@ export interface Database {
           summary: string | null
           metrics: Json
           file_url: string | null
+          status: string
+          idempotency_key: string | null
+          data_snapshot_hash: string | null
+          failure_reason: string | null
           created_at: string
           updated_at: string
         }
@@ -432,6 +436,10 @@ export interface Database {
           summary?: string | null
           metrics?: Json
           file_url?: string | null
+          status?: string
+          idempotency_key?: string | null
+          data_snapshot_hash?: string | null
+          failure_reason?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -445,6 +453,10 @@ export interface Database {
           summary?: string | null
           metrics?: Json
           file_url?: string | null
+          status?: string
+          idempotency_key?: string | null
+          data_snapshot_hash?: string | null
+          failure_reason?: string | null
           created_at?: string
           updated_at?: string
         }

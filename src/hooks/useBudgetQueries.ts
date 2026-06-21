@@ -11,6 +11,10 @@ import {
 } from '@/services/transactions';
 import { calculateBudgetSummary, BudgetSummary } from '@/lib/budgets';
 import { Transaction, Budget, Category } from '@/types/api';
+import {
+  invalidateAfterTransactionChange,
+  invalidateAfterBudgetLimitChange,
+} from '@/lib/queryInvalidation';
 
 // Query Keys
 export const queryKeys = {
@@ -27,6 +31,7 @@ export function useCurrentProfile() {
   return useQuery({
     queryKey: queryKeys.profile,
     queryFn: () => getCurrentProfile(),
+    staleTime: 60_000,
   });
 }
 
@@ -35,6 +40,7 @@ export function useCurrentBudget() {
   return useQuery({
     queryKey: queryKeys.currentBudget,
     queryFn: () => getCurrentBudget(),
+    staleTime: 30_000,
   });
 }
 
@@ -43,6 +49,7 @@ export function useCategories() {
   return useQuery({
     queryKey: queryKeys.categories,
     queryFn: () => getCategories(),
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -133,11 +140,7 @@ export function useCreateTransaction() {
   return useMutation({
     mutationFn: (tx: Partial<Transaction>) => createTransaction(tx),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-      queryClient.invalidateQueries({ queryKey: queryKeys.recentTransactions });
-      if (budget?.id) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.limits(budget.id) });
-      }
+      invalidateAfterTransactionChange(queryClient, budget?.id);
     },
   });
 }
@@ -150,11 +153,7 @@ export function useUpdateTransaction() {
   return useMutation({
     mutationFn: (tx: Partial<Transaction> & { id: string }) => updateTransaction(tx),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-      queryClient.invalidateQueries({ queryKey: queryKeys.recentTransactions });
-      if (budget?.id) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.limits(budget.id) });
-      }
+      invalidateAfterTransactionChange(queryClient, budget?.id);
     },
   });
 }
@@ -167,11 +166,7 @@ export function useSoftDeleteTransaction() {
   return useMutation({
     mutationFn: (id: string) => softDeleteTransaction(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.transactions });
-      queryClient.invalidateQueries({ queryKey: queryKeys.recentTransactions });
-      if (budget?.id) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.limits(budget.id) });
-      }
+      invalidateAfterTransactionChange(queryClient, budget?.id);
     },
   });
 }
@@ -194,7 +189,7 @@ export function useUpdateCategoryLimit() {
     mutationFn: ({ budgetId, categoryId, limit }: { budgetId: string; categoryId: string; limit: number }) =>
       updateOrCreateCategoryLimit(budgetId, categoryId, limit),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.limits(variables.budgetId) });
+      invalidateAfterBudgetLimitChange(queryClient, variables.budgetId);
     },
   });
 }

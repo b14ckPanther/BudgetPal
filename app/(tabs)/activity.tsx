@@ -24,6 +24,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, MoneyAmount, Chip, Button } from '@/components/ui';
+import { ScreenLoadingState, ScreenErrorState, ScreenEmptyState } from '@/components/feedback';
 import { t } from '@/lib/i18n';
 import { formatRelativeDate } from '@/lib/dates';
 import { formatCategoryLabel } from '@/lib/categoryHierarchy';
@@ -86,12 +87,7 @@ export default function ActivityScreen() {
   if (isLoading) {
     return (
       <Screen backgroundVariant="hero">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.md }}>
-            Loading transaction history...
-          </Text>
-        </View>
+        <ScreenLoadingState message={t('states.activityLoading')} />
       </Screen>
     );
   }
@@ -99,18 +95,12 @@ export default function ActivityScreen() {
   if (isError) {
     return (
       <Screen backgroundVariant="hero">
-        <ScrollView
-          contentContainerStyle={styles.loadingContainer}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={colors.primary} />}
-        >
-          <AlertTriangle size={48} color={colors.danger} />
-          <Text variant="h3" style={{ marginTop: spacing.md }} color={colors.textPrimary}>
-            Unable to load transactions
-          </Text>
-          <Text variant="bodySmall" color={colors.textMuted} align="center" style={{ marginTop: spacing.xs, marginHorizontal: spacing.xl }}>
-            Please try again. Pull down to refresh.
-          </Text>
-        </ScrollView>
+        <ScreenErrorState
+          title={t('states.activityLoadFailedTitle')}
+          message={t('states.activityLoadFailedMessage')}
+          onRetry={() => void refetch()}
+          onRefresh={() => void refetch()}
+        />
       </Screen>
     );
   }
