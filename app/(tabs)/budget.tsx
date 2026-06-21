@@ -12,12 +12,12 @@ import {
   RefreshControl,
   Pressable,
   Modal,
-  Alert,
 } from 'react-native';
 import { Calendar, PenLine, Plus, AlertTriangle } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, MoneyAmount, ProgressBar, Input, Button } from '@/components/ui';
 import { t } from '@/lib/i18n';
+import { useFeedback } from '@/components/feedback';
 import { formatCurrency } from '@/lib/currency';
 import { useCurrentBudget, useBudgetSummary, useUpdateCategoryLimit } from '@/hooks/useBudgetQueries';
 
@@ -31,12 +31,13 @@ interface EditLimitModalProps {
 
 function EditLimitModal({ visible, categoryName, currentLimit, onClose, onSave }: EditLimitModalProps) {
   const { colors, spacing, radius } = useTheme();
+  const { toast } = useFeedback();
   const [value, setValue] = useState(currentLimit > 0 ? String(currentLimit) : '');
 
   const handleSave = () => {
     const num = Number(value.trim());
     if (isNaN(num) || num < 0) {
-      Alert.alert('Invalid Limit', 'Please enter a valid positive number.');
+      toast({ variant: 'warning', message: t('feedback.invalidLimit') });
       return;
     }
     onSave(num);
@@ -72,6 +73,7 @@ function EditLimitModal({ visible, categoryName, currentLimit, onClose, onSave }
 
 export default function BudgetScreen() {
   const { colors, spacing } = useTheme();
+  const { toast } = useFeedback();
 
   // Queries
   const { data: budget, isLoading: isBudgetLoading } = useCurrentBudget();
@@ -134,8 +136,10 @@ export default function BudgetScreen() {
       });
       setSelectedCat(null);
       refetch();
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update limit.');
+      toast({ variant: 'success', message: t('feedback.budgetLimitUpdated') });
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Update limit failed:', err);
+      toast({ variant: 'error', message: t('feedback.budgetLimitUpdateFailed') });
     }
   };
 

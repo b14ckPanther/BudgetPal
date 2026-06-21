@@ -10,7 +10,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Modal,
   Pressable,
   ActivityIndicator,
@@ -23,6 +22,7 @@ import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/dates';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useCategories, useCurrentBudget, useCreateTransaction } from '@/hooks/useBudgetQueries';
+import { useFeedback } from '@/components/feedback';
 
 type TxType = 'expense' | 'income' | 'transfer';
 
@@ -41,6 +41,7 @@ export default function NewTransactionScreen() {
     type?: string;
     note?: string;
   }>();
+  const { toast } = useFeedback();
 
   // Queries & Mutations
   const { data: categories, isLoading: isCatsLoading, isError: isCatsError, refetch: refetchCats } = useCategories();
@@ -125,17 +126,17 @@ export default function NewTransactionScreen() {
   const handleSave = async () => {
     const parsedAmount = Number(amount.trim());
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid positive amount.');
+      toast({ variant: 'warning', message: t('feedback.validationAmount') });
       return;
     }
 
     if (!merchant.trim()) {
-      Alert.alert('Validation Error', 'Please enter a merchant or title.');
+      toast({ variant: 'warning', message: t('feedback.validationMerchant') });
       return;
     }
 
     if (!selectedCategory && type !== 'transfer') {
-      Alert.alert('Validation Error', 'Please select a category.');
+      toast({ variant: 'warning', message: t('feedback.validationCategory') });
       return;
     }
 
@@ -159,9 +160,11 @@ export default function NewTransactionScreen() {
         status: 'confirmed',
       });
 
+      toast({ variant: 'success', message: t('feedback.transactionSaved') });
       router.back();
-    } catch (err: any) {
-      Alert.alert('Save Error', err.message || 'Something went wrong while saving the transaction.');
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Save transaction failed:', err);
+      toast({ variant: 'error', message: t('feedback.transactionSaveFailed') });
     } finally {
       setLoading(false);
     }

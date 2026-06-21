@@ -4,19 +4,21 @@
  */
 
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { Screen, Text, Input, Button, Card } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { updateProfile } from '@/services/profile';
 import { createInitialBudget } from '@/services/budgets';
+import { useFeedback } from '@/components/feedback';
 
 type BudgetStyleOption = 'strict' | 'balanced' | 'chill';
 
 export default function OnboardingScreen() {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
+  const { toast } = useFeedback();
   const [step, setStep] = useState(0);
   const [currency, setCurrency] = useState('ILS');
   const [monthlyIncome, setMonthlyIncome] = useState('');
@@ -55,8 +57,9 @@ export default function OnboardingScreen() {
         });
 
         router.replace('/(tabs)/agent');
-      } catch (err: any) {
-        Alert.alert('Onboarding Error', err.message || 'Failed to complete onboarding configuration.');
+      } catch (err: unknown) {
+        if (__DEV__) console.error('Onboarding failed:', err);
+        toast({ variant: 'error', message: t('feedback.onboardingFailed') });
       } finally {
         setLoading(false);
       }

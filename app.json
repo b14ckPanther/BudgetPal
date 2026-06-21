@@ -38,6 +38,13 @@
           "microphonePermission": "BudgetPal needs microphone access to record voice expenses."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "BudgetPal needs photo access to import receipt images.",
+          "cameraPermission": "BudgetPal needs camera access to photograph receipts."
+        }
+      ],
       "expo-asset"
     ],
     "experiments": {

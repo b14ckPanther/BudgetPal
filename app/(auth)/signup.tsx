@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Pressable,
   Modal,
 } from 'react-native';
@@ -19,12 +18,14 @@ import { Screen, Text, Input, Button } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/dates';
 import { signUpWithEmail } from '@/services/auth';
+import { useFeedback } from '@/components/feedback';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Constants from 'expo-constants';
 
 export default function SignupScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
+  const { toast } = useFeedback();
   
   // Fields state
   const [firstName, setFirstName] = useState('');
@@ -65,7 +66,7 @@ export default function SignupScreen() {
     setShowDatePicker(false);
     if (event.type === 'set' && date) {
       if (!isAtLeast16(date)) {
-        Alert.alert('Error', t('auth.dobUnderage'));
+        toast({ variant: 'warning', message: t('auth.dobUnderage') });
         return;
       }
       setSelectedDate(date);
@@ -89,12 +90,12 @@ export default function SignupScreen() {
       !lastName.trim() ||
       !username.trim()
     ) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+      toast({ variant: 'warning', message: t('feedback.signupFieldsRequired') });
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      toast({ variant: 'warning', message: t('feedback.signupPasswordMismatch') });
       return;
     }
 
@@ -102,17 +103,17 @@ export default function SignupScreen() {
     const normalizedUsername = username.trim().toLowerCase();
     const usernameRegex = /^[a-z][a-z0-9_]{2,23}$/;
     if (!usernameRegex.test(normalizedUsername)) {
-      Alert.alert('Error', t('auth.usernameInvalid'));
+      toast({ variant: 'warning', message: t('auth.usernameInvalid') });
       return;
     }
 
     // 3. DOB Validation
     if (!selectedDate) {
-      Alert.alert('Error', t('auth.dobRequired'));
+      toast({ variant: 'warning', message: t('auth.dobRequired') });
       return;
     }
     if (!isAtLeast16(selectedDate)) {
-      Alert.alert('Error', t('auth.dobUnderage'));
+      toast({ variant: 'warning', message: t('auth.dobUnderage') });
       return;
     }
 
@@ -146,7 +147,7 @@ export default function SignupScreen() {
         if (checkData.error) {
           // Ignore server database error, proceed to signup (trigger will handle it if it's indeed taken)
         } else if (!checkData.available) {
-          Alert.alert('Error', 'That username is already taken.');
+          toast({ variant: 'warning', message: t('feedback.usernameTaken') });
           setLoading(false);
           return;
         }
@@ -168,58 +169,35 @@ export default function SignupScreen() {
       if (data?.user) {
         router.replace('/(auth)/onboarding');
       } else {
-        Alert.alert('Error', 'Something went wrong during signup.');
+        toast({ variant: 'error', message: t('feedback.signupFailed') });
       }
-    } catch (err: any) {
-      console.log('Signup error details:', err);
-      
-      let cleanMessage = '';
-      if (err && typeof err === 'object') {
-        if (err.message) {
-          try {
-            const parsed = JSON.parse(err.message);
-            if (parsed && typeof parsed === 'object') {
-              cleanMessage = parsed.message || parsed.msg || parsed.error_description || parsed.error || '';
-            }
-          } catch {}
-        }
-        if (!cleanMessage) {
-          cleanMessage = err.message || err.error_description || err.error || '';
-        }
-      } else if (typeof err === 'string') {
-        cleanMessage = err;
-      }
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Signup error:', err);
 
-      const errStr = cleanMessage || '';
-      let errMsg = 'We couldn’t create your account. Please try again.';
-      
+      let errMsg = t('feedback.signupFailed');
+      const errStr = err instanceof Error ? err.message : '';
+
       if (
-        errStr.toLowerCase().includes('duplicate') || 
-        errStr.toLowerCase().includes('unique') || 
+        errStr.toLowerCase().includes('duplicate') ||
+        errStr.toLowerCase().includes('unique') ||
         errStr.toLowerCase().includes('already taken')
       ) {
         if (errStr.toLowerCase().includes('username') || errStr.toLowerCase().includes('lower(username)')) {
-          errMsg = 'That username is already taken.';
+          errMsg = t('feedback.usernameTaken');
         } else {
-          errMsg = 'That email is already registered.';
+          errMsg = t('feedback.emailTaken');
         }
       } else if (errStr.toLowerCase().includes('underage') || errStr.toLowerCase().includes('16 years')) {
         errMsg = t('auth.dobUnderage');
       } else if (
-        errStr.toLowerCase().includes('username must be') || 
-        errStr.toLowerCase().includes('username rule') || 
+        errStr.toLowerCase().includes('username must be') ||
+        errStr.toLowerCase().includes('username rule') ||
         errStr.toLowerCase().includes('username format')
       ) {
         errMsg = t('auth.usernameInvalid');
-      } else if (errStr.includes('unexpected_failure') || errStr.toLowerCase().includes('database error')) {
-        // Since Supabase Auth masks database trigger failures as unexpected_failure/database error,
-        // it could be a duplicate username or general failure.
-        errMsg = 'Username or email may already be taken, or a database error occurred. Please try a different username or try again.';
-      } else if (errStr) {
-        errMsg = errStr;
       }
 
-      Alert.alert('Signup Error', errMsg);
+      toast({ variant: 'error', message: errMsg });
     } finally {
       setLoading(false);
     }

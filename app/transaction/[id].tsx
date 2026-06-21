@@ -10,7 +10,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Modal,
   Pressable,
   ActivityIndicator,
@@ -29,6 +28,7 @@ import {
   useUpdateTransaction,
   useSoftDeleteTransaction,
 } from '@/hooks/useBudgetQueries';
+import { useFeedback } from '@/components/feedback';
 
 type TxType = 'expense' | 'income' | 'transfer';
 
@@ -36,6 +36,7 @@ export default function TransactionDetailScreen() {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { confirm, toast } = useFeedback();
 
   // Queries & Mutations
   const { data: txs, isLoading: isTxLoading } = useTransactions();
@@ -146,17 +147,17 @@ export default function TransactionDetailScreen() {
 
     const parsedAmount = Number(amount.trim());
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid positive amount.');
+      toast({ variant: 'warning', message: t('feedback.validationAmount') });
       return;
     }
 
     if (!merchant.trim()) {
-      Alert.alert('Validation Error', 'Please enter a merchant or title.');
+      toast({ variant: 'warning', message: t('feedback.validationMerchant') });
       return;
     }
 
     if (!selectedCategory && type !== 'transfer') {
-      Alert.alert('Validation Error', 'Please select a category.');
+      toast({ variant: 'warning', message: t('feedback.validationCategory') });
       return;
     }
 
@@ -177,36 +178,35 @@ export default function TransactionDetailScreen() {
         note: note.trim() || undefined,
       });
 
+      toast({ variant: 'success', message: t('feedback.transactionUpdated') });
       router.back();
-    } catch (err: any) {
-      Alert.alert('Update Error', err.message || 'Something went wrong while updating.');
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Update transaction failed:', err);
+      toast({ variant: 'error', message: t('feedback.transactionUpdateFailed') });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!transaction) return;
 
-    Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteTxMutation.mutateAsync(transaction.id);
-              router.back();
-            } catch (err: any) {
-              Alert.alert('Delete Error', err.message || 'Failed to delete transaction.');
-            }
-          },
-        },
-      ]
-    );
+    const confirmed = await confirm({
+      title: t('feedback.deleteTransactionTitle'),
+      message: t('feedback.deleteTransactionMessage'),
+      variant: 'destructive',
+      confirmLabel: t('common.delete'),
+    });
+    if (!confirmed) return;
+
+    try {
+      await deleteTxMutation.mutateAsync(transaction.id);
+      toast({ variant: 'success', message: t('feedback.transactionDeleted') });
+      router.back();
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Delete transaction failed:', err);
+      toast({ variant: 'error', message: t('feedback.transactionDeleteFailed') });
+    }
   };
 
   if (isTxLoading || !transaction) {

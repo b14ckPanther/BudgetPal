@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Pressable,
-  Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -30,9 +29,10 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, ProgressBar, Button } from '@/components/ui';
-import { AgentInputBar, QuickActionChip, AgentMessageBubble, VoiceRecordingBar } from '@/components/agent';
+import { AgentInputBar, QuickActionChip, AgentMessageBubble, VoiceRecordingBar, ReceiptScanSheet } from '@/components/agent';
 import { TransactionPreviewCard } from '@/components/cards/TransactionPreviewCard';
 import { VoicePreviewCard } from '@/components/cards/VoicePreviewCard';
+import { ReceiptPreviewCard } from '@/components/cards/ReceiptPreviewCard';
 import { SpendingAnalysisCard } from '@/components/cards/SpendingAnalysisCard';
 import { AffordabilityCard } from '@/components/cards/AffordabilityCard';
 import { SavingAdviceCard } from '@/components/cards/SavingAdviceCard';
@@ -48,14 +48,17 @@ import { getAgentMessages, sendMessageToAgent, confirmAgentAction, cancelAgentAc
 import { transcribeVoiceAudio } from '@/services/voice';
 import { useVoiceRecorder, VoiceRecordingResult } from '@/hooks/useVoiceRecorder';
 import { useAgentSpeech } from '@/hooks/useAgentSpeech';
+import { useReceiptScan } from '@/hooks/useReceiptScan';
 import { hapticPreviewReady, hapticVoiceError } from '@/lib/voiceFeedback';
 import { buildAgentSpeakableSummary } from '@/lib/agentSpeakableSummary';
-import { AgentMessage } from '@/types/agent';
+import { useFeedback } from '@/components/feedback';
+import { AgentMessage, AgentResponse } from '@/types/agent';
 
 export default function AgentScreen() {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { confirm, toast } = useFeedback();
 
   // Queries
   const { data: profile, isLoading: isProfileLoading } = useCurrentProfile();
@@ -259,9 +262,9 @@ export default function AgentScreen() {
 
       setMessages(prev => [...prev, agentMsg]);
       queueAgentAutoplay(agentMsgId, spokenSummary ?? null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to send message to agent:', err);
-      Alert.alert(t('agent.sendError') || 'Error', err.message || 'Could not communicate with the agent.');
+      toast({ variant: 'error', message: t('feedback.sendMessageFailed') });
       
       // Add error system/agent message
       const errorMsgId = `error-${Date.now()}`;
@@ -288,7 +291,7 @@ export default function AgentScreen() {
     try {
       await confirmAgentAction(actionId);
       setProcessedActions(prev => ({ ...prev, [actionId]: 'confirmed' }));
-      Alert.alert(t('common.confirm') || 'Confirmed', t('agent.actionConfirmSuccess') || 'Action completed successfully!');
+      toast({ variant: 'success', message: t('feedback.actionConfirmed') });
 
       if (voiceRepliesEnabled) {
         const spoken = resolveSpokenSummary({ content: '' }, 'confirmed');
@@ -298,9 +301,9 @@ export default function AgentScreen() {
       }
 
       queryClient.invalidateQueries();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to confirm agent action:', err);
-      Alert.alert(t('agent.confirmError') || 'Error', err.message || 'Could not confirm transaction.');
+      toast({ variant: 'error', message: t('feedback.actionConfirmFailed') });
     }
   };
 
@@ -309,7 +312,7 @@ export default function AgentScreen() {
     try {
       await cancelAgentAction(actionId);
       setProcessedActions(prev => ({ ...prev, [actionId]: 'cancelled' }));
-      Alert.alert(t('common.cancel') || 'Cancelled', t('agent.cancelSuccess') || 'Proposal cancelled.');
+      toast({ variant: 'info', message: t('feedback.proposalCancelled') });
 
       if (voiceRepliesEnabled) {
         const spoken = resolveSpokenSummary({ content: '' }, 'cancelled');
@@ -317,9 +320,9 @@ export default function AgentScreen() {
           queueAgentAutoplay(`cancel-${actionId}`, spoken);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to cancel agent action:', err);
-      Alert.alert(t('agent.cancelError') || 'Error', err.message || 'Could not cancel action.');
+      toast({ variant: 'error', message: t('feedback.actionCancelFailed') });
     }
   };
 
@@ -375,6 +378,7 @@ export default function AgentScreen() {
       pathname: '/transaction/agent-edit',
       params: {
         actionId: proposal.actionId as string,
+        source: 'voice',
         amount: proposal.amount?.toString(),
         merchant: (proposal.merchant as string) || '',
         title: proposal.title as string,
@@ -384,6 +388,27 @@ export default function AgentScreen() {
         subcategoryName: proposal.subcategoryName as string,
         date: proposal.date as string,
         type: proposal.type as string,
+        note: proposal.note as string,
+      },
+    });
+  };
+
+  const handleEditReceiptAction = (proposal: Record<string, unknown>) => {
+    router.push({
+      pathname: '/transaction/agent-edit',
+      params: {
+        actionId: proposal.actionId as string,
+        receiptId: proposal.receiptId as string,
+        source: 'receipt',
+        amount: proposal.totalAmount?.toString() || proposal.amount?.toString(),
+        merchant: (proposal.merchant as string) || '',
+        title: (proposal.title as string) || (proposal.merchant as string) || '',
+        categoryId: proposal.categoryId as string,
+        categoryName: proposal.categoryName as string,
+        subcategoryId: proposal.subcategoryId as string,
+        subcategoryName: proposal.subcategoryName as string,
+        date: proposal.date as string,
+        type: (proposal.type as string) || 'expense',
         note: proposal.note as string,
       },
     });
@@ -427,6 +452,17 @@ export default function AgentScreen() {
 
     return { agentMsgId, spokenSummary: spokenSummary ?? null };
   }, [resolveSpokenSummary, queueAgentAutoplay]);
+
+  const handleReceiptScanComplete = useCallback((response: AgentResponse) => {
+    prepareForOutgoingMessage();
+    appendAgentResponse('[Receipt scan]', response);
+    const hasReceiptPreview = (response.cards || []).some((c) => c.type === 'receipt_preview');
+    if (hasReceiptPreview) {
+      void hapticPreviewReady();
+    }
+  }, [appendAgentResponse, prepareForOutgoingMessage]);
+
+  const receiptScan = useReceiptScan(handleReceiptScanComplete);
 
   const transcribeRecording = useCallback(async (recording: VoiceRecordingResult) => {
     if (transcribingRef.current) return;
@@ -502,29 +538,25 @@ export default function AgentScreen() {
     voiceRecorder.reset();
   };
 
-  const handleClearChat = () => {
-    Alert.alert(
-      t('agent.clearHistoryTitle'),
-      t('agent.clearHistoryMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('agent.clearHistoryConfirm'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await clearAgentHistory();
-              setMessages([]);
-              setProcessedActions({});
-              prepareForOutgoingMessage();
-              queryClient.invalidateQueries();
-            } catch {
-              Alert.alert(t('agent.clearHistoryTitle'), t('agent.clearHistoryError'));
-            }
-          },
-        },
-      ]
-    );
+  const handleClearChat = async () => {
+    const confirmed = await confirm({
+      title: t('agent.clearHistoryTitle'),
+      message: t('agent.clearHistoryMessage'),
+      variant: 'destructive',
+      confirmLabel: t('agent.clearHistoryConfirm'),
+    });
+    if (!confirmed) return;
+
+    try {
+      await clearAgentHistory();
+      setMessages([]);
+      setProcessedActions({});
+      prepareForOutgoingMessage();
+      queryClient.invalidateQueries();
+      toast({ variant: 'success', message: t('feedback.historyCleared') });
+    } catch {
+      toast({ variant: 'error', message: t('agent.clearHistoryError') });
+    }
   };
 
   // Handle Quick Action Clicks
@@ -532,13 +564,13 @@ export default function AgentScreen() {
     if (actionKey === 'voiceExpense') {
       handleMicPress();
     } else if (actionKey === 'scanReceipt') {
-      Alert.alert("Scan Receipt", "Receipt scanning is coming in a later phase. For now, please type your transaction details.");
+      receiptScan.open();
     } else if (actionKey === 'analyzeSpending') {
       handleSend('What did I spend most on this month?');
     } else if (actionKey === 'canIAfford') {
       setInputValue('Can I afford ');
     } else if (actionKey === 'generateReport') {
-      Alert.alert("Generate Report", "PDF reports and structured statements are coming soon in Phase 5! View your reports list in the Reports tab.");
+      toast({ variant: 'info', message: t('feedback.reportsComingSoon') });
     }
   };
 
@@ -596,6 +628,38 @@ export default function AgentScreen() {
                 onConfirm={isProcessed ? undefined : () => handleConfirmAction(actionId)}
                 onCancel={isProcessed ? undefined : () => handleCancelAction(actionId)}
                 onEdit={isProcessed ? undefined : () => handleEditVoiceAction(data)}
+              />
+              {isProcessed && renderProcessedBanner(actionId, isProcessed)}
+            </View>
+          );
+        }
+
+        if (card.type === 'receipt_preview') {
+          const actionId = data.actionId as string;
+          const isProcessed = processedActions[actionId];
+          return (
+            <View key={cardKey} style={{ marginVertical: spacing.sm }}>
+              <ReceiptPreviewCard
+                receiptId={data.receiptId as string}
+                merchant={data.merchant as string}
+                date={data.date as string}
+                totalAmount={data.totalAmount as number | null}
+                currency={(data.currency as string) || profile?.currency || 'ILS'}
+                category={data.categoryName as string}
+                subcategory={data.subcategoryName as string | null}
+                confidence={(data.confidence as number) ?? 0}
+                items={data.items as { name: string; price?: number | null }[]}
+                requiresManualAmount={data.requiresManualAmount as boolean}
+                uncertaintyNotes={data.uncertaintyNotes as string | null}
+                duplicateWarning={data.duplicateWarning as {
+                  merchant: string;
+                  amount: number;
+                  currency: string;
+                  date: string;
+                }}
+                onConfirm={isProcessed ? undefined : () => handleConfirmAction(actionId)}
+                onCancel={isProcessed ? undefined : () => handleCancelAction(actionId)}
+                onEdit={isProcessed ? undefined : () => handleEditReceiptAction(data)}
               />
               {isProcessed && renderProcessedBanner(actionId, isProcessed)}
             </View>
@@ -695,8 +759,10 @@ export default function AgentScreen() {
       handleCancelAction,
       handleEditAction,
       handleEditVoiceAction,
+      handleEditReceiptAction,
       handleEditBudgetLimit,
       renderProcessedBanner,
+      profile?.currency,
     ]
   );
 
@@ -1096,6 +1162,19 @@ export default function AgentScreen() {
             />
           </View>
       </View>
+      <ReceiptScanSheet
+        visible={receiptScan.uiState !== 'idle'}
+        uiState={receiptScan.uiState}
+        preview={receiptScan.preview}
+        errorMessage={receiptScan.errorMessage}
+        onClose={receiptScan.close}
+        onTakePhoto={receiptScan.pickFromCamera}
+        onChooseLibrary={receiptScan.pickFromLibrary}
+        onRetake={receiptScan.pickFromCamera}
+        onChooseAnother={() => receiptScan.setUiState('selecting')}
+        onScan={receiptScan.submitScan}
+        onRetry={receiptScan.retry}
+      />
     </Screen>
   );
 }

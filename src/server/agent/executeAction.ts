@@ -13,6 +13,7 @@ import {
 } from '../../lib/categoryHierarchy';
 import { updateOrCreateCategoryLimitServer } from './budgetLimitsServer';
 import { loadUserContext } from './loadUserContext';
+import { deleteReceiptImage } from '../receipts/storageReceiptImage';
 
 type ActionPayload = Record<string, unknown>;
 
@@ -70,6 +71,20 @@ async function markExecuted(
   if (error) console.error('Error updating agent action status:', error);
 }
 
+async function findTransactionByReceiptId(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  receiptId: string
+) {
+  const { data: tx } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('receipt_id', receiptId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return tx;
+}
+
 async function findExecutedTransaction(
   supabase: SupabaseClient<Database>,
   userId: string,
@@ -86,6 +101,12 @@ async function findExecutedTransaction(
     if (tx) return tx;
   }
 
+  const receiptId = payload.receiptId as string | undefined;
+  if (receiptId) {
+    const tx = await findTransactionByReceiptId(supabase, userId, receiptId);
+    if (tx) return tx;
+  }
+
   const voiceEntryId = payload.voiceEntryId as string | undefined;
   if (voiceEntryId) {
     const { data: tx } = await supabase
@@ -98,6 +119,20 @@ async function findExecutedTransaction(
   }
 
   return null;
+}
+
+async function updateReceiptStatus(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  receiptId: string | undefined,
+  status: 'confirmed' | 'rejected'
+) {
+  if (!receiptId) return;
+  await supabase
+    .from('receipts')
+    .update({ status })
+    .eq('id', receiptId)
+    .eq('user_id', userId);
 }
 
 async function updateVoiceEntryStatus(
@@ -122,20 +157,57 @@ async function confirmTransactionAction(
   overrides?: Record<string, unknown>
 ) {
   const actionPayload = (payload || {}) as ActionPayload;
+  const receiptId = (actionPayload.receiptId as string | undefined) ?? undefined;
 
   const existingTx = await findExecutedTransaction(supabase, userId, actionPayload);
   if (existingTx) {
+    if (receiptId) {
+      await updateReceiptStatus(supabase, userId, receiptId, 'confirmed');
+    }
+    await markExecuted(supabase, actionId, {
+      ...actionPayload,
+      ...(overrides || {}),
+      executedTransactionId: existingTx.id,
+    });
     return { type: 'transaction' as const, transaction: existingTx, alreadyExecuted: true };
   }
 
-  const merged = { ...actionPayload, ...(overrides || {}) };
+  if (receiptId) {
+    const byReceipt = await findTransactionByReceiptId(supabase, userId, receiptId);
+    if (byReceipt) {
+      await updateReceiptStatus(supabase, userId, receiptId, 'confirmed');
+      await markExecuted(supabase, actionId, {
+        ...actionPayload,
+        ...(overrides || {}),
+        executedTransactionId: byReceipt.id,
+      });
+      return { type: 'transaction' as const, transaction: byReceipt, alreadyExecuted: true };
+    }
+  }
+
+  const merged: ActionPayload = { ...actionPayload, ...(overrides || {}) };
+  if (actionPayload.receiptId) merged.receiptId = actionPayload.receiptId;
+  if (actionPayload.source) merged.source = actionPayload.source;
+
+  const isReceipt = merged.source === 'receipt' || !!receiptId;
+  if (isReceipt) {
+    const rawAmount = merged.amount;
+    if (rawAmount == null || Number(rawAmount) <= 0 || !Number.isFinite(Number(rawAmount))) {
+      throw new Error('Please enter a valid receipt total before confirming.');
+    }
+  }
+
   const parsed = TransactionProposalSchema.parse(merged);
   const categories = await loadUserCategories(supabase, userId);
   const resolvedCategories = resolveProposalCategories(categories, parsed);
 
   const source =
-    actionPayload.source === 'voice' ? 'voice' : 'text';
-  const voiceEntryId = (actionPayload.voiceEntryId as string | undefined) ?? undefined;
+    merged.source === 'receipt'
+      ? 'receipt'
+      : merged.source === 'voice'
+        ? 'voice'
+        : 'text';
+  const voiceEntryId = (merged.voiceEntryId as string | undefined) ?? undefined;
 
   const { data: locked, error: lockError } = await supabase
     .from('agent_actions')
@@ -184,6 +256,7 @@ async function confirmTransactionAction(
     status: 'confirmed',
     note: parsed.note || null,
     voice_entry_id: voiceEntryId || null,
+    receipt_id: receiptId || null,
   };
 
   const { data: transaction, error: txError } = await supabase
@@ -193,6 +266,20 @@ async function confirmTransactionAction(
     .single();
 
   if (txError || !transaction) {
+    if (txError?.code === '23505' && receiptId) {
+      const existing = await findTransactionByReceiptId(supabase, userId, receiptId);
+      if (existing) {
+        await updateReceiptStatus(supabase, userId, receiptId, 'confirmed');
+        const updatedPayload: ActionPayload = {
+          ...actionPayload,
+          ...(overrides || {}),
+          executedTransactionId: existing.id,
+        };
+        await markExecuted(supabase, actionId, updatedPayload);
+        return { type: 'transaction' as const, transaction: existing, alreadyExecuted: true };
+      }
+    }
+
     await supabase
       .from('agent_actions')
       .update({ status: 'proposed' })
@@ -209,6 +296,9 @@ async function confirmTransactionAction(
 
   await markExecuted(supabase, actionId, updatedPayload);
   await updateVoiceEntryStatus(supabase, userId, voiceEntryId, 'confirmed');
+  if (receiptId) {
+    await updateReceiptStatus(supabase, userId, receiptId, 'confirmed');
+  }
 
   if (voiceEntryId) {
     await supabase
@@ -391,6 +481,7 @@ export async function cancelAction(
 
   const payload = action.payload as ActionPayload;
   const voiceEntryId = payload.voiceEntryId as string | undefined;
+  const receiptId = payload.receiptId as string | undefined;
 
   const { error: updateError } = await supabase
     .from('agent_actions')
@@ -403,6 +494,20 @@ export async function cancelAction(
   }
 
   await updateVoiceEntryStatus(supabase, userId, voiceEntryId, 'rejected');
+
+  if (receiptId) {
+    const { data: receipt } = await supabase
+      .from('receipts')
+      .select('status')
+      .eq('id', receiptId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (receipt?.status === 'pending_review') {
+      await updateReceiptStatus(supabase, userId, receiptId, 'rejected');
+      await deleteReceiptImage(userId, receiptId);
+    }
+  }
 
   return { success: true };
 }

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert, ActivityIndicator, RefreshControl, Switch } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -25,6 +25,7 @@ import { t } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { useCurrentProfile, useCurrentBudget, queryKeys } from '@/hooks/useBudgetQueries';
 import { updateProfile } from '@/services/profile';
+import { useFeedback } from '@/components/feedback';
 import { stopAgentSpeech } from '@/services/agentSpeech';
 
 interface SettingRowProps {
@@ -105,6 +106,7 @@ export default function ProfileScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { confirm, toast } = useFeedback();
   const [voiceRepliesSaving, setVoiceRepliesSaving] = useState(false);
 
   // Queries
@@ -115,16 +117,26 @@ export default function ProfileScreen() {
   const isError = isProfileError || isBudgetError;
 
   const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: t('feedback.logoutTitle'),
+      message: t('feedback.logoutMessage'),
+      variant: 'destructive',
+      confirmLabel: t('profile.logout'),
+    });
+    if (!confirmed) return;
+
     try {
       stopAgentSpeech();
       const { error } = await supabase.auth.signOut();
       if (error) {
-        Alert.alert('Logout Error', error.message);
+        if (__DEV__) console.error('Logout failed:', error);
+        toast({ variant: 'error', message: t('feedback.logoutFailed') });
       } else {
         router.replace('/(auth)/login');
       }
-    } catch (err: any) {
-      Alert.alert('Error', err.message || 'An unexpected error occurred during logout.');
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Logout failed:', err);
+      toast({ variant: 'error', message: t('feedback.logoutFailed') });
     }
   };
 
@@ -143,8 +155,8 @@ export default function ProfileScreen() {
       await updateProfile({ agentVoiceRepliesEnabled: next });
       await queryClient.invalidateQueries({ queryKey: queryKeys.profile });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Could not update preference.';
-      Alert.alert('Settings', message);
+      if (__DEV__) console.error('Voice replies toggle failed:', err);
+      toast({ variant: 'error', message: t('feedback.settingsUpdateFailed') });
     } finally {
       setVoiceRepliesSaving(false);
     }

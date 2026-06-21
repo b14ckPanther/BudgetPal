@@ -9,7 +9,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Modal,
   Pressable,
   ActivityIndicator,
@@ -24,6 +23,7 @@ import { t } from '@/lib/i18n';
 import { formatDate } from '@/lib/dates';
 import { useCategories, useCurrentBudget } from '@/hooks/useBudgetQueries';
 import { confirmAgentAction } from '@/services/agent';
+import { useFeedback } from '@/components/feedback';
 
 type TxType = 'expense' | 'income' | 'transfer';
 
@@ -31,8 +31,11 @@ export default function AgentEditTransactionScreen() {
   const { colors, spacing, radius } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { toast } = useFeedback();
   const params = useLocalSearchParams<{
     actionId?: string;
+    receiptId?: string;
+    source?: string;
     amount?: string;
     merchant?: string;
     title?: string;
@@ -46,6 +49,7 @@ export default function AgentEditTransactionScreen() {
   }>();
 
   const actionId = params.actionId;
+  const isReceiptEdit = params.source === 'receipt';
   const { data: categories, isLoading: isCatsLoading, isError: isCatsError, refetch: refetchCats } = useCategories();
   const { data: budget } = useCurrentBudget();
 
@@ -83,23 +87,23 @@ export default function AgentEditTransactionScreen() {
 
   const handleSave = async () => {
     if (!actionId) {
-      Alert.alert(t('voice.editError'), t('voice.missingAction'));
+      toast({ variant: 'error', message: t('voice.missingAction') });
       return;
     }
 
     const parsedAmount = Number(amount.trim());
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert(t('voice.editError'), t('voice.invalidAmount'));
+      toast({ variant: 'warning', message: t('voice.invalidAmount') });
       return;
     }
 
     if (!merchant.trim()) {
-      Alert.alert(t('voice.editError'), t('voice.invalidMerchant'));
+      toast({ variant: 'warning', message: t('voice.invalidMerchant') });
       return;
     }
 
     if (!selectedCategory && type !== 'transfer') {
-      Alert.alert(t('voice.editError'), t('voice.invalidCategory'));
+      toast({ variant: 'warning', message: t('voice.invalidCategory') });
       return;
     }
 
@@ -123,12 +127,14 @@ export default function AgentEditTransactionScreen() {
       });
 
       queryClient.invalidateQueries();
-      Alert.alert(t('common.confirm'), t('voice.editConfirmSuccess'), [
-        { text: t('common.done'), onPress: () => router.back() },
-      ]);
+      toast({
+        variant: 'success',
+        message: isReceiptEdit ? t('feedback.receiptTransactionSaved') : t('feedback.voiceTransactionSaved'),
+      });
+      router.back();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t('voice.editConfirmFailed');
-      Alert.alert(t('voice.editError'), message);
+      if (__DEV__) console.error('Agent edit confirm failed:', err);
+      toast({ variant: 'error', message: t('feedback.editSaveFailed') });
     } finally {
       setLoading(false);
     }
@@ -142,13 +148,13 @@ export default function AgentEditTransactionScreen() {
             <ArrowLeft size={20} color={colors.textPrimary} />
           </Pressable>
           <Text variant="h2" style={{ flex: 1, textAlign: 'center', marginRight: 40 }}>
-            {t('voice.editTitle')}
+            {isReceiptEdit ? t('receipt.editTitle') : t('voice.editTitle')}
           </Text>
         </View>
 
         <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: spacing.xl }]}>
           <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.md }}>
-            {t('voice.editSubtitle')}
+            {isReceiptEdit ? t('receipt.editSubtitle') : t('voice.editSubtitle')}
           </Text>
 
           <View style={[styles.typeSelectorRow, { marginTop: spacing.lg }]}>
@@ -239,7 +245,7 @@ export default function AgentEditTransactionScreen() {
           </View>
 
           <Button
-            label={t('voice.saveVoiceTransaction')}
+            label={isReceiptEdit ? t('receipt.saveReceiptTransaction') : t('voice.saveVoiceTransaction')}
             onPress={handleSave}
             loading={loading}
             disabled={loading}

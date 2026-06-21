@@ -138,6 +138,27 @@ export const AgentMessageRequestSchema = z.object({
 
 export type AgentMessageRequest = z.infer<typeof AgentMessageRequestSchema>;
 
+// ── Receipt extraction ───────────────────────────────────
+export const ReceiptLineItemSchema = z.object({
+  name: z.string(),
+  quantity: z.number().nullable().optional(),
+  price: z.number().nullable().optional(),
+});
+
+export const ReceiptExtractionSchema = z.object({
+  merchant: z.string().nullable(),
+  receiptDate: z.string().nullable(),
+  totalAmount: z.number().positive().nullable(),
+  currency: z.string().default('ILS'),
+  lineItems: z.array(ReceiptLineItemSchema).default([]),
+  suggestedCategoryName: z.string(),
+  suggestedSubcategoryName: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+  uncertaintyNotes: z.string().nullable(),
+});
+
+export type ReceiptExtraction = z.infer<typeof ReceiptExtractionSchema>;
+
 // ── Card payload helpers ───────────────────────────────────
 export const AffordabilityVerdictSchema = z.enum([
   'safe',

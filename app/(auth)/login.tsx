@@ -4,23 +4,25 @@
  */
 
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/theme';
 import { Screen, Text, Input, Button } from '@/components/ui';
 import { t } from '@/lib/i18n';
 import { signInWithIdentifier } from '@/services/auth';
+import { useFeedback } from '@/components/feedback';
 
 export default function LoginScreen() {
   const { colors, spacing } = useTheme();
   const router = useRouter();
+  const { toast } = useFeedback();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please enter your email/username and password.');
+      toast({ variant: 'warning', message: t('feedback.loginFieldsRequired') });
       return;
     }
 
@@ -31,19 +33,19 @@ export default function LoginScreen() {
       if (data?.user) {
         router.replace('/(tabs)/agent');
       } else {
-        Alert.alert('Login Error', t('auth.invalidCredentials'));
+        toast({ variant: 'error', message: t('feedback.loginFailed') });
       }
-    } catch (err: any) {
-      console.log('Login error details:', err);
-      const errMsg = err?.message || '';
+    } catch (err: unknown) {
+      if (__DEV__) console.error('Login error:', err);
+      const errMsg = err instanceof Error ? err.message : '';
       if (
-        errMsg.toLowerCase().includes('network') || 
+        errMsg.toLowerCase().includes('network') ||
         errMsg.toLowerCase().includes('failed to fetch') ||
         errMsg.toLowerCase().includes('typeerror')
       ) {
-        Alert.alert('Connection Error', 'Unable to connect to the login server. Please make sure the server is running and your device has access.');
+        toast({ variant: 'error', message: t('feedback.connectionFailed') });
       } else {
-        Alert.alert('Login Error', errMsg || t('auth.invalidCredentials'));
+        toast({ variant: 'error', message: t('feedback.loginFailed') });
       }
     } finally {
       setLoading(false);

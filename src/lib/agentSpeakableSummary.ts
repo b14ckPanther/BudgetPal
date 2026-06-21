@@ -41,6 +41,20 @@ function transactionPreviewSummary(card: AgentCard, currency: string): string {
   return t('agentSpeech.transactionPreview', { amount, label, type });
 }
 
+function receiptPreviewSummary(card: AgentCard, currency: string): string {
+  const data = card.data;
+  const cardCurrency = (data.currency as string) || currency;
+  const merchant = (data.merchant as string) || 'the merchant';
+  const amount =
+    data.totalAmount != null
+      ? formatMoneyForSpeech(data.totalAmount, cardCurrency)
+      : formatMoneyForSpeech(0, cardCurrency, { style: 'full' });
+  if (data.totalAmount == null || data.requiresManualAmount) {
+    return t('agentSpeech.receiptPreviewMissingAmount', { merchant });
+  }
+  return t('agentSpeech.receiptPreview', { merchant, amount });
+}
+
 function spendingAnalysisSummary(card: AgentCard, currency: string): string {
   const data = card.data;
   const topItem = data.topItem as { name?: string; amount?: number } | undefined;
@@ -180,6 +194,9 @@ function summaryFromCards(cards: AgentCard[], currency: string): string | null {
   for (const card of cards) {
     if (card.type === 'transaction_preview' || card.type === 'voice_preview') {
       return transactionPreviewSummary(card, currency);
+    }
+    if (card.type === 'receipt_preview') {
+      return receiptPreviewSummary(card, currency);
     }
     if (card.type === 'spending_analysis') {
       return spendingAnalysisSummary(card, currency);
