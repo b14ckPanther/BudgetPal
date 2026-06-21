@@ -57,6 +57,7 @@ import { AgentMessage, AgentResponse } from '@/types/agent';
 import { ApiRequestError } from '@/lib/apiFetch';
 import { getUserFacingMessage } from '@/lib/apiErrors';
 import { invalidateAfterAgentConfirm, invalidateAfterClearHistory } from '@/lib/queryInvalidation';
+import { triggerBudgetAlertsAfterMutation } from '@/services/notifications/triggerAfterMutation';
 
 const PENDING_CARD_TYPES = new Set([
   'transaction_preview',
@@ -328,6 +329,7 @@ export default function AgentScreen() {
       }
 
       invalidateAfterAgentConfirm(queryClient, budget?.id);
+      void triggerBudgetAlertsAfterMutation(queryClient);
     } catch (err: unknown) {
       console.error('Failed to confirm agent action:', err);
       toast({ variant: 'error', message: getUserFacingMessage(err) });

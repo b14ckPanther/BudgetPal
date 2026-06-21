@@ -31,6 +31,7 @@ export function mapProfile(db: DBProfile): Profile {
     onboardingCompleted: db.onboarding_completed,
     notificationsEnabled: db.notifications_enabled,
     agentVoiceRepliesEnabled: db.agent_voice_replies_enabled ?? false,
+    themePreference: (db.theme_preference as 'dark' | 'light') || 'dark',
     createdAt: db.created_at,
     updatedAt: db.updated_at,
   };

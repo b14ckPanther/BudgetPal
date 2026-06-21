@@ -41,6 +41,9 @@ export async function updateProfile(profile: Partial<Profile>): Promise<Profile>
   if (profile.agentVoiceRepliesEnabled !== undefined) {
     dbUpdate.agent_voice_replies_enabled = profile.agentVoiceRepliesEnabled;
   }
+  if (profile.themePreference !== undefined) {
+    dbUpdate.theme_preference = profile.themePreference;
+  }
 
   const { data, error } = await supabase
     .from('profiles')

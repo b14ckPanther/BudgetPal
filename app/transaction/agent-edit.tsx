@@ -26,6 +26,7 @@ import { confirmAgentAction } from '@/services/agent';
 import { useFeedback } from '@/components/feedback';
 import { getUserFacingMessage } from '@/lib/apiErrors';
 import { invalidateAfterAgentConfirm } from '@/lib/queryInvalidation';
+import { triggerBudgetAlertsAfterMutation } from '@/services/notifications/triggerAfterMutation';
 
 type TxType = 'expense' | 'income' | 'transfer';
 
@@ -129,6 +130,7 @@ export default function AgentEditTransactionScreen() {
       });
 
       invalidateAfterAgentConfirm(queryClient, budget?.id);
+      void triggerBudgetAlertsAfterMutation(queryClient);
       toast({
         variant: 'success',
         message: isReceiptEdit ? t('feedback.receiptTransactionSaved') : t('feedback.voiceTransactionSaved'),

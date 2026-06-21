@@ -90,3 +90,46 @@ export async function apiFetch<T>(
 
   return body as T;
 }
+
+export async function apiFetchText(
+  path: string,
+  options: RequestInit & { skipAuth?: boolean } = {}
+): Promise<string> {
+  const { skipAuth, ...fetchOptions } = options;
+  const url = `${getApiBaseUrl()}${path}`;
+  const headers: Record<string, string> = {
+    ...(fetchOptions.headers as Record<string, string>),
+  };
+
+  if (!skipAuth) {
+    const token = await getAccessToken();
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(url, { ...fetchOptions, headers });
+  } catch (err) {
+    if (isNetworkError(err)) {
+      throw new ApiRequestError(parseApiErrorResponse(0, null, true));
+    }
+    throw err;
+  }
+
+  const text = await response.text();
+  if (!response.ok) {
+    let body: unknown = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+    const parsed = parseApiErrorResponse(response.status, body);
+    if (parsed.isUnauthorized) {
+      void handleUnauthorizedSession();
+    }
+    throw new ApiRequestError(parsed);
+  }
+
+  return text;
+}

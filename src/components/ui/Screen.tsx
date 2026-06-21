@@ -49,7 +49,7 @@ export function Screen({
       edges={edges}
       style={[styles.container, { backgroundColor: colors.background }, style]}
     >
-      <StatusBar style="light" />
+      <StatusBar style={colors.statusBarStyle} />
       {gradientColors && (
         <LinearGradient
           colors={gradientColors}

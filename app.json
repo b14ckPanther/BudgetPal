@@ -45,7 +45,14 @@
           "cameraPermission": "BudgetPal needs camera access to photograph receipts."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#4ADEB2"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,5 +1,7 @@
 import { formatCurrency } from './currency';
 import { buildParentMap, getTransactionCategoryAttribution } from './categoryHierarchy';
+import { BudgetStyle } from '@/types/api';
+import { getBudgetStylePolicy, resolveWarningSeverity } from './budgetStylePolicy';
 
 export interface CycleRange {
   startDate: Date;
@@ -106,7 +108,7 @@ export interface BudgetSummary {
  * Main budget calculations engine.
  */
 export function calculateBudgetSummary(
-  budget: { cycleStartDay: number; monthlyIncome: number; currency: string } | null,
+  budget: { cycleStartDay: number; monthlyIncome: number; currency: string; budgetStyle?: BudgetStyle } | null,
   transactions: {
     amount: number;
     type: string;
@@ -199,40 +201,45 @@ export function calculateBudgetSummary(
     safeToSpend = Math.max(0, remainingPlanned / daysLeft);
   }
 
-  // Derived Warnings
+  // Derived Warnings (respect budget style policy)
+  const style = budget.budgetStyle || 'balanced';
+  const policy = getBudgetStylePolicy(style);
   const warnings: BudgetWarning[] = [];
   for (const cat of catSummaries) {
-    if (cat.limit > 0) {
-      if (cat.percentage >= 100) {
-        const overAmt = Math.abs(cat.remaining);
-        warnings.push({
-          categoryId: cat.categoryId,
-          categoryName: cat.name,
-          type: 'danger',
-          message: `${cat.name} is over budget by ${formatCurrency(overAmt, budget.currency)}.`,
-        });
-      } else if (cat.percentage >= 85) {
-        warnings.push({
-          categoryId: cat.categoryId,
-          categoryName: cat.name,
-          type: 'strong',
-          message: `${cat.name} is ${cat.percentage}% used with ${daysLeft} days left in your cycle.`,
-        });
-      } else if (cat.percentage >= 75) {
-        warnings.push({
-          categoryId: cat.categoryId,
-          categoryName: cat.name,
-          type: 'attention',
-          message: `${cat.name} is ${cat.percentage}% used with ${daysLeft} days left in your cycle.`,
-        });
-      } else if (cat.percentage >= 50) {
-        warnings.push({
-          categoryId: cat.categoryId,
-          categoryName: cat.name,
-          type: 'gentle',
-          message: `${cat.name} is ${cat.percentage}% used with ${daysLeft} days left in your cycle.`,
-        });
-      }
+    if (cat.limit <= 0) continue;
+    const severity = resolveWarningSeverity(cat.percentage, style);
+    if (!severity) continue;
+    if (severity === 'gentle' && !policy.showGentleWarnings) continue;
+
+    if (cat.percentage >= 100) {
+      const overAmt = Math.abs(cat.remaining);
+      warnings.push({
+        categoryId: cat.categoryId,
+        categoryName: cat.name,
+        type: 'danger',
+        message: `${cat.name} is over budget by ${formatCurrency(overAmt, budget.currency)}.`,
+      });
+    } else if (severity === 'strong') {
+      warnings.push({
+        categoryId: cat.categoryId,
+        categoryName: cat.name,
+        type: 'strong',
+        message: `${cat.name} is ${cat.percentage}% used with ${daysLeft} days left in your cycle.`,
+      });
+    } else if (severity === 'attention') {
+      warnings.push({
+        categoryId: cat.categoryId,
+        categoryName: cat.name,
+        type: 'attention',
+        message: `${cat.name} is ${cat.percentage}% used with ${daysLeft} days left in your cycle.`,
+      });
+    } else {
+      warnings.push({
+        categoryId: cat.categoryId,
+        categoryName: cat.name,
+        type: 'gentle',
+        message: `${cat.name} is ${cat.percentage}% used with ${daysLeft} days left in your cycle.`,
+      });
     }
   }
 

@@ -6,7 +6,7 @@
 import React from 'react';
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/theme';
-import { colors } from '@/theme/colors';
+import { ThemePreferenceSync } from '@/components/theme/ThemePreferenceSync';
 import { FeedbackProvider, SessionRecoveryBootstrap } from '@/components/feedback';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -25,10 +25,10 @@ export default function RootLayout() {
       <ThemeProvider>
         <FeedbackProvider>
           <SessionRecoveryBootstrap />
+          <ThemePreferenceSync />
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
               animation: 'fade',
             }}
           />

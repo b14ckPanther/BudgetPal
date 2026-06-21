@@ -17,7 +17,7 @@ import {
   Shield,
   LogOut,
   ChevronRight,
-  AlertTriangle,
+  SunMoon,
 } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, Button } from '@/components/ui';
@@ -28,6 +28,7 @@ import { useCurrentProfile, useCurrentBudget, queryKeys } from '@/hooks/useBudge
 import { updateProfile } from '@/services/profile';
 import { useFeedback } from '@/components/feedback';
 import { stopAgentSpeech } from '@/services/agentSpeech';
+import { getCurrencyOption } from '@/lib/currencies';
 
 interface SettingRowProps {
   icon: React.ReactNode;
@@ -188,15 +189,25 @@ export default function ProfileScreen() {
   const email = profile.email || 'No email registered';
   const avatarLetter = displayName.charAt(0).toUpperCase();
 
-  const currencyValue = budget?.currency 
-    ? `${budget.currency} (${budget.currency === 'ILS' ? 'Shekel' : budget.currency === 'USD' ? 'Dollar' : budget.currency === 'EUR' ? 'Euro' : 'Pound'})`
-    : 'ILS (Shekel)';
+  const currencyCode = budget?.currency || profile?.currency || 'ILS';
+  const currencyMeta = getCurrencyOption(currencyCode);
+  const currencyValue = currencyMeta
+    ? `${t(currencyMeta.nameKey)} (${currencyCode})`
+    : currencyCode;
 
   const budgetStyleValue = profile.budgetStyle
-    ? profile.budgetStyle.charAt(0).toUpperCase() + profile.budgetStyle.slice(1)
-    : 'Balanced';
+    ? t(`onboarding.${profile.budgetStyle}`)
+    : t('onboarding.balanced');
 
-  const notificationsValue = profile.notificationsEnabled !== false ? 'Enabled' : 'Disabled';
+  const notificationsValue =
+    profile.notificationsEnabled !== false
+      ? t('profileSettings.statusEnabled')
+      : t('profileSettings.statusDisabled');
+
+  const appearanceValue =
+    (profile.themePreference || 'dark') === 'light'
+      ? t('profileSettings.appearanceLight')
+      : t('profileSettings.appearanceDark');
 
   return (
     <Screen backgroundVariant="hero">
@@ -218,7 +229,7 @@ export default function ProfileScreen() {
             </View>
             <View style={[styles.statusChip, { backgroundColor: colors.primarySoft }]}>
               <Text variant="caption" color={colors.primary} weight="medium" style={{ fontSize: 11 }}>
-                Active
+                {t('profile.statusActive')}
               </Text>
             </View>
           </View>
@@ -251,21 +262,31 @@ export default function ProfileScreen() {
           icon={<Globe size={18} color={colors.textSecondary} />}
           label={t('profile.currency')}
           value={currencyValue}
+          onPress={() => router.push('/profile/currency')}
         />
         <SettingRow
           icon={<Languages size={18} color={colors.textSecondary} />}
           label={t('profile.language')}
-          value="English"
+          value={t('profileSettings.languageEnglish')}
+          onPress={() => router.push('/profile/language')}
         />
         <SettingRow
           icon={<Gauge size={18} color={colors.textSecondary} />}
           label={t('profile.budgetStyle')}
           value={budgetStyleValue}
+          onPress={() => router.push('/profile/budget-style')}
         />
         <SettingRow
           icon={<Bell size={18} color={colors.textSecondary} />}
           label={t('profile.notifications')}
           value={notificationsValue}
+          onPress={() => router.push('/profile/notifications')}
+        />
+        <SettingRow
+          icon={<SunMoon size={18} color={colors.textSecondary} />}
+          label={t('profile.appearance')}
+          value={appearanceValue}
+          onPress={() => router.push('/profile/appearance')}
         />
         <SettingToggleRow
           icon={<Volume2 size={18} color={colors.textSecondary} />}
@@ -278,18 +299,20 @@ export default function ProfileScreen() {
 
         {/* ── Data & Privacy ───────────────────────── */}
         <Text variant="label" color={colors.textMuted} style={{ marginTop: spacing.xxl, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 11 }}>
-          Data & Privacy
+          {t('profile.dataAndPrivacy')}
         </Text>
 
         <SettingRow
           icon={<Download size={18} color={colors.textSecondary} />}
           label={t('profile.dataExport')}
-          value=""
+          value={t('profileSettings.dataExportRowValue')}
+          onPress={() => router.push('/profile/data-export')}
         />
         <SettingRow
           icon={<Shield size={18} color={colors.textSecondary} />}
           label={t('profile.privacy')}
-          value=""
+          value={t('profileSettings.privacyRowValue')}
+          onPress={() => router.push('/profile/privacy')}
         />
 
         {/* ── Logout ───────────────────────────────── */}

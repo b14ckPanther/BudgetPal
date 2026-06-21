@@ -92,6 +92,7 @@ export interface Profile {
   onboardingCompleted: boolean;
   notificationsEnabled: boolean;
   agentVoiceRepliesEnabled: boolean;
+  themePreference: 'dark' | 'light';
   createdAt: string;
   updatedAt: string;
 }

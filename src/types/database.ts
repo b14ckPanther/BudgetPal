@@ -28,6 +28,7 @@ export interface Database {
           onboarding_completed: boolean
           notifications_enabled: boolean
           agent_voice_replies_enabled: boolean
+          theme_preference: string
           created_at: string
           updated_at: string
         }
@@ -49,6 +50,7 @@ export interface Database {
           onboarding_completed?: boolean
           notifications_enabled?: boolean
           agent_voice_replies_enabled?: boolean
+          theme_preference?: string
           created_at?: string
           updated_at?: string
         }
@@ -70,6 +72,7 @@ export interface Database {
           onboarding_completed?: boolean
           notifications_enabled?: boolean
           agent_voice_replies_enabled?: boolean
+          theme_preference?: string
           created_at?: string
           updated_at?: string
         }

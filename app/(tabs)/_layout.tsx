@@ -7,11 +7,12 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Bot, Wallet, ClockArrowUp, ChartNoAxesCombined, User } from 'lucide-react-native';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme';
 import { typography } from '@/theme/typography';
 import { t } from '@/lib/i18n';
 
 export default function TabsLayout() {
+  const { colors } = useTheme();
   return (
     <Tabs
       screenOptions={{

@@ -11,10 +11,8 @@ import {
 } from '@/services/transactions';
 import { calculateBudgetSummary, BudgetSummary } from '@/lib/budgets';
 import { Transaction, Budget, Category } from '@/types/api';
-import {
-  invalidateAfterTransactionChange,
-  invalidateAfterBudgetLimitChange,
-} from '@/lib/queryInvalidation';
+import { invalidateAfterTransactionChange, invalidateAfterBudgetLimitChange } from '@/lib/queryInvalidation';
+import { triggerBudgetAlertsAfterMutation } from '@/services/notifications/triggerAfterMutation';
 
 // Query Keys
 export const queryKeys = {
@@ -100,7 +98,14 @@ export function useBudgetSummary(): {
   let summaryData: BudgetSummary | undefined = undefined;
   if (!isLoading && !isError) {
     summaryData = calculateBudgetSummary(
-      budget || null,
+      budget
+        ? {
+            cycleStartDay: budget.cycleStartDay,
+            monthlyIncome: budget.monthlyIncome,
+            currency: budget.currency,
+            budgetStyle: budget.budgetStyle,
+          }
+        : null,
       (transactions || []).map((tx) => ({
         amount: tx.amount,
         type: tx.type,
@@ -141,6 +146,7 @@ export function useCreateTransaction() {
     mutationFn: (tx: Partial<Transaction>) => createTransaction(tx),
     onSuccess: () => {
       invalidateAfterTransactionChange(queryClient, budget?.id);
+      void triggerBudgetAlertsAfterMutation(queryClient);
     },
   });
 }
@@ -154,6 +160,7 @@ export function useUpdateTransaction() {
     mutationFn: (tx: Partial<Transaction> & { id: string }) => updateTransaction(tx),
     onSuccess: () => {
       invalidateAfterTransactionChange(queryClient, budget?.id);
+      void triggerBudgetAlertsAfterMutation(queryClient);
     },
   });
 }

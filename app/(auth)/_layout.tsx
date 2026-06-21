@@ -1,13 +1,14 @@
 /**
  * BudgetPal — Auth Layout
- * Stack navigator for authentication screens.
  */
 
 import React from 'react';
 import { Stack } from 'expo-router';
-import { colors } from '@/theme/colors';
+import { useTheme } from '@/theme';
 
 export default function AuthLayout() {
+  const { colors } = useTheme();
+
   return (
     <Stack
       screenOptions={{
