@@ -1,5 +1,5 @@
 /**
- * Race-safe bootstrap — resolves session and onboarding before any tab flash.
+ * Race-safe bootstrap — resolves session, locale, and onboarding before navigation.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -7,6 +7,7 @@ import { Redirect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { resolveAuthDestination, AuthDestination } from '@/lib/authRouting';
 import { resetSessionRecoveryGuard } from '@/lib/sessionRecovery';
+import { syncLocaleFromProfile } from '@/components/locale';
 import { useTheme } from '@/theme';
 import { Screen } from '@/components/ui';
 import { ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
@@ -24,6 +25,9 @@ export default function Index() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const result = await resolveAuthDestination(session);
+      if (result.profile?.preferredLanguage) {
+        await syncLocaleFromProfile(result.profile.preferredLanguage);
+      }
       setDestination(result.destination);
       setPhase('ready');
     } catch {

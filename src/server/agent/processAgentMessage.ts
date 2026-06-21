@@ -6,6 +6,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { Database } from '../../types/database';
 import { classifyIntent } from './classifyIntent';
 import { handleAgentIntent } from './handleAgentIntent';
+import { resolveAgentLanguage } from './language';
 
 export type AgentChannel = 'text' | 'voice';
 
@@ -30,12 +31,13 @@ export async function processAgentMessage(
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('first_name, display_name, currency')
+    .select('first_name, display_name, currency, preferred_language')
     .eq('id', userId)
     .single();
 
   const userName = profile?.first_name || profile?.display_name || 'there';
   const currency = profile?.currency || 'ILS';
+  const language = resolveAgentLanguage(profile?.preferred_language);
 
   const { data: categories = [] } = await supabase
     .from('categories')
@@ -49,7 +51,7 @@ export async function processAgentMessage(
     parentCategoryId: c.parent_category_id || null,
   }));
 
-  const classification = await classifyIntent(messageText, { today, userName });
+  const classification = await classifyIntent(messageText, { today, userName, language });
   const { intent, confidence } = classification;
 
   const userContent =
@@ -77,6 +79,7 @@ export async function processAgentMessage(
     userMessageId: userMessage?.id,
     channel,
     transcription: channel === 'voice' ? messageText : undefined,
+    language,
   });
 
   await supabase.from('agent_messages').insert({

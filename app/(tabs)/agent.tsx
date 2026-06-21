@@ -117,7 +117,7 @@ export default function AgentScreen() {
 
   const { speakingMessageId, speakSummary, stopSpeaking } = useAgentSpeech({
     enabled: voiceRepliesEnabled,
-    language: profile?.preferredLanguage === 'en' ? 'en-US' : profile?.preferredLanguage || 'en-US',
+    language: profile?.preferredLanguage === 'he' ? 'he-IL' : 'en-US',
     profileCurrency: profile?.currency || 'ILS',
     isVoiceCaptureActive: isVoiceBusy,
   });

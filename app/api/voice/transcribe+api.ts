@@ -66,7 +66,13 @@ export async function POST(request: ExpoRequest): Promise<Response> {
 
     let transcription: string;
     try {
-      transcription = await transcribeAudioBuffer(buffer, mimeType);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('preferred_language')
+        .eq('id', userId)
+        .maybeSingle();
+      const languageHint = profile?.preferred_language === 'he' ? 'he' : 'en';
+      transcription = await transcribeAudioBuffer(buffer, mimeType, languageHint);
     } catch {
       return apiErrorResponse('SERVICE_UNAVAILABLE', 422);
     }

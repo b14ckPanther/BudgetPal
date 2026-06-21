@@ -9,11 +9,15 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.budgetpal.app"
+      "bundleIdentifier": "com.budgetpal.app",
+      "infoPlist": {
+        "CFBundleLocalizations": ["en", "he"]
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
         "backgroundColor": "#080B12"
       },
       "package": "com.budgetpal.app"
@@ -35,14 +39,14 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "BudgetPal needs microphone access to record voice expenses."
+          "microphonePermission": "BudgetPal needs microphone access to record voice expenses. | BudgetPal זקוקה לגישה למיקרופון כדי לתעד הוצאות בקול."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "BudgetPal needs photo access to import receipt images.",
-          "cameraPermission": "BudgetPal needs camera access to photograph receipts."
+          "photosPermission": "BudgetPal needs photo access to import receipt images. | BudgetPal זקוקה לגישה לתמונות כדי לייבא תמונות קבלות.",
+          "cameraPermission": "BudgetPal needs camera access to photograph receipts. | BudgetPal זקוקה לגישה למצלמה כדי לצלם קבלות."
         }
       ],
       "expo-asset",

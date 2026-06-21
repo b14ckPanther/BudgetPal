@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 /**
- * Development-only demo reset for a single demo user.
- * Never expose via the mobile app or public API routes.
+ * Development-only demo reset for the Noor presentation account.
+ * Clears mutable data + storage, then restores the shared SQL baseline.
  *
  * Usage:
- *   node scripts/demo-reset.mjs --demo-user-id=<uuid> --dry-run
- *   node scripts/demo-reset.mjs --demo-user-id=<uuid> --confirm
+ *   npm run demo-reset -- --dry-run
+ *   npm run demo-reset -- --confirm
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  DEMO_NOOR_USER_ID,
+  DEMO_CLEAR_RPC,
+  DEMO_SEED_RPC,
+} from './demo/constants.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -27,14 +32,12 @@ function loadEnvFile() {
     if (eq === -1) continue;
     const key = trimmed.slice(0, eq).trim();
     const value = trimmed.slice(eq + 1).trim();
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
+    if (!process.env[key]) process.env[key] = value;
   }
 }
 
 function parseArgs(argv) {
-  const args = { demoUserId: '', dryRun: false, confirm: false };
+  const args = { demoUserId: DEMO_NOOR_USER_ID, dryRun: false, confirm: false };
   for (const arg of argv) {
     if (arg === '--dry-run') args.dryRun = true;
     if (arg === '--confirm') args.confirm = true;
@@ -57,6 +60,7 @@ const SCOPED_TABLES = [
   'reports',
   'warnings',
   'budget_events',
+  'budget_category_limits',
 ];
 
 const STORAGE_BUCKETS = ['receipt-scans', 'report-exports'];
@@ -76,13 +80,11 @@ async function listStorageObjects(supabase, bucket, prefix) {
   return data || [];
 }
 
-async function deleteStoragePrefix(supabase, bucket, userId, dryRun) {
+async function deleteStoragePrefix(supabase, bucket, userId) {
   const objects = await listStorageObjects(supabase, bucket, userId);
   if (objects.length === 0) return 0;
 
   const paths = objects.map((obj) => `${userId}/${obj.name}`);
-  if (dryRun) return paths.length;
-
   const { error } = await supabase.storage.from(bucket).remove(paths);
   if (error) throw new Error(`${bucket} cleanup failed`);
   return paths.length;
@@ -99,12 +101,17 @@ async function main() {
   const { demoUserId, dryRun, confirm } = parseArgs(process.argv.slice(2));
 
   if (!demoUserId || !UUID_RE.test(demoUserId)) {
-    console.error('Required: --demo-user-id=<valid-uuid>');
+    console.error('Invalid demo user id.');
+    process.exit(1);
+  }
+
+  if (demoUserId !== DEMO_NOOR_USER_ID) {
+    console.error('demo-reset only supports the Noor presentation demo user.');
     process.exit(1);
   }
 
   if (!dryRun && !confirm) {
-    console.error('Pass --dry-run to preview or --confirm to execute deletions.');
+    console.error('Pass --dry-run to preview or --confirm to execute reset + reseed.');
     process.exit(1);
   }
 
@@ -143,14 +150,15 @@ async function main() {
     return;
   }
 
-  for (const table of SCOPED_TABLES) {
-    const { error } = await supabase.from(table).delete().eq('user_id', demoUserId);
-    if (error) throw new Error(`Delete ${table} failed`);
+  for (const bucket of STORAGE_BUCKETS) {
+    await deleteStoragePrefix(supabase, bucket, demoUserId);
   }
 
-  for (const bucket of STORAGE_BUCKETS) {
-    await deleteStoragePrefix(supabase, bucket, demoUserId, false);
-  }
+  const { error: clearError } = await supabase.rpc(DEMO_CLEAR_RPC, { p_user_id: demoUserId });
+  if (clearError) throw new Error(clearError.message);
+
+  const { error: seedError } = await supabase.rpc(DEMO_SEED_RPC, { p_user_id: demoUserId });
+  if (seedError) throw new Error(seedError.message);
 
   console.log(
     JSON.stringify({
@@ -158,6 +166,7 @@ async function main() {
       demoUserId,
       tablesCleared: SCOPED_TABLES.length,
       storageBuckets: STORAGE_BUCKETS,
+      baselineRestored: true,
     })
   );
 }

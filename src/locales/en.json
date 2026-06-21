@@ -156,10 +156,12 @@
   "agentReplies": {
     "greeting": {
       "default": [
-        "{namePrefix}Want to log something you spent, or check your budget?",
-        "Good to see you. You can speak an expense, add one manually, or ask what you can afford.",
-        "Hi there. I can help with spending, limits, or logging a purchase.",
-        "{namePrefix}What should we look at in your budget today?"
+        "{nameHey}Want to log something, review spending, or check what you can afford?",
+        "Hi. I can help you add an expense, look at your budget, or review recent spending.",
+        "Welcome back. What would you like to check today?",
+        "{nameHey}You can speak an expense, scan a receipt, or ask about your budget.",
+        "Good to see you. Tell me an amount to log, or ask what you spent most on.",
+        "Hi there. Ready to log a purchase, review a category, or check affordability?"
       ],
       "noTransactions": [
         "{namePrefix}You have not logged any transactions yet. Want to add your first expense?",
@@ -171,6 +173,19 @@
         "Hi. Set category limits on the Budget screen and I can guide safe-to-spend decisions.",
         "{namePrefix}A few category limits will unlock affordability checks and daily safe-to-spend."
       ],
+      "withInsight": [
+        "{nameHey}When you have a moment, {category} is around {percent} percent of its limit.",
+        "Hi. {category} is getting fuller this cycle — about {percent} percent used if you want a look.",
+        "Welcome back. {category} is worth a quick check at roughly {percent} percent.",
+        "{namePrefix}if you want a budget snapshot, {category} is near {percent} percent.",
+        "Hi there. I can log something new, or we can review {category} at about {percent} percent."
+      ],
+      "overBudget": [
+        "{nameHey}{category} is slightly over its limit this cycle. Want to see where that went?",
+        "Hi. {category} passed its limit — I can show the breakdown if helpful.",
+        "Welcome back. {category} is a bit over budget. Review it, or log something new?",
+        "{namePrefix}{category} is over its cap. I can break down the spend whenever you are ready."
+      ],
       "nearLimit": [
         "{namePrefix}Your {category} budget is about {percent} percent used. Want a quick breakdown?",
         "Heads up — {category} is getting close to its limit. I can show where the spend is going.",
@@ -179,24 +194,35 @@
       "safeToSpend": [
         "{namePrefix}You have about {safeAmount} {currency} safe to spend today. Want to log something or check a category?",
         "Your daily safe-to-spend is around {safeAmount} {currency}. I can help log a purchase or review spending.",
-        "{namePrefix}Plenty of room today — roughly {safeAmount} {currency} safe to spend. What should we handle?"
+        "{namePrefix}Plenty of room today — roughly {safeAmount} {currency} safe to spend. What should we handle?",
+        "Hi. About {safeAmount} {currency} is safe to spend today if you want to plan a purchase.",
+        "Welcome back. You still have room in the plan — near {safeAmount} {currency} for today."
       ]
     },
     "appGuidance": [
       "I can log expenses, review spending, check affordability, and adjust budget limits.",
       "Try a voice expense, ask what you spent most on, or check whether a purchase fits your plan.",
-      "Speak a purchase, scan details in later, or ask what is left in a category."
+      "Speak a purchase, scan details in later, or ask what is left in a category.",
+      "I handle budget tasks here — logging, spending checks, limits, and affordability.",
+      "Ask about a category, log an expense, or see what fits your plan this cycle.",
+      "You can talk through a purchase, review trends, or update a category limit."
     ],
     "outOfScope": {
       "general": [
         "I am focused on your budget, but I can help you log a purchase or review spending.",
         "I cannot help with that topic, but I can check affordability or show category spending.",
-        "I am here for spending and budget decisions. Want to see what is left in your food budget?"
+        "I am here for spending and budget decisions. Want to see what is left in your food budget?",
+        "That is outside what I do here, but I can help with expenses, limits, or spending checks.",
+        "I stay focused on your finances in BudgetPal. Want to log something or review a category?",
+        "I cannot answer that directly, but I can help with your budget, purchases, or spending trends."
       ],
       "spendHint": [
         "I am focused on your budget, but I can help you check what you can spend on dinner tonight.",
         "I cannot answer that directly, but I can help you log a purchase or see what is left in a category.",
-        "I am here for spending decisions. Want to check whether something fits your plan?"
+        "I am here for spending decisions. Want to check whether something fits your plan?",
+        "I cannot weigh in on that, but I can check affordability or show recent spending.",
+        "That is not my area, though I can help you see what is left for dining or shopping.",
+        "I am best with budget tasks — log an expense, check a limit, or review spending."
       ]
     },
     "unclear": [
@@ -305,6 +331,7 @@
     "safeToSpend": "Safe to Spend",
     "safeToSpendToday": "Safe to spend today",
     "remaining": "remaining",
+    "unbudgetedCategories": "Unbudgeted categories",
     "spent": "spent",
     "categoryBudgets": "Category Budgets",
     "aiRecommendation": "AI Recommendation",
@@ -372,7 +399,8 @@
     "noDataBody": "Add confirmed transactions or choose a different date range to generate a report.",
     "backToReports": "Back to Reports",
     "loadingDetail": "Loading report…",
-    "notFoundHint": "This report may have been removed or is no longer available."
+    "notFoundHint": "This report may have been removed or is no longer available.",
+    "hebrewPdfUnavailable": "Hebrew PDF export is not available yet. Your in-app report is fully available in Hebrew."
   },
   "profile": {
     "title": "Profile",
@@ -412,8 +440,15 @@
     },
     "languageSubtitle": "App language for menus, labels, and Agent responses.",
     "languageEnglish": "English",
-    "languageEnglishDesc": "Currently supported",
-    "languageFutureNote": "BudgetPal currently supports English. More languages are planned for a future version.",
+    "languageEnglishDesc": "Left-to-right layout, Ubuntu font",
+    "languageHebrew": "עברית",
+    "languageHebrewDesc": "Right-to-left layout, Heebo font",
+    "languageNote": "Changing language updates menus, labels, Agent responses, and layout direction. A restart may be required to apply RTL layout.",
+    "languageFutureNote": "BudgetPal supports English and Hebrew.",
+    "localeRestartTitle": "Restart to apply layout",
+    "localeRestartMessage": "BudgetPal needs a quick restart to switch between left-to-right and right-to-left layout. Your data will not change.",
+    "localeRestartAction": "Restart to apply layout",
+    "localeRestartLater": "Not now",
     "budgetStyleSubtitle": "Adjust warning timing and guidance tone. This does not change your financial calculations.",
     "budgetStyleUpdated": "Budget style updated.",
     "appearanceSubtitle": "Choose how BudgetPal looks on this device.",
@@ -565,6 +600,54 @@
     "fallback": "Here is my response.",
     "replay": "Replay spoken summary",
     "stopSpeaking": "Stop speaking"
+  },
+  "dates": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "daysAgo": "{count} days ago",
+    "range": "{start} – {end}",
+    "remainingToday": "Ends today",
+    "remainingOneDay": "1 day left",
+    "remainingDays": "{count} days left"
+  },
+  "builtinCategories": {
+    "foodAndDrinks": "Food & Drinks",
+    "groceries": "Groceries",
+    "restaurants": "Restaurants",
+    "delivery": "Delivery",
+    "coffee": "Coffee",
+    "transport": "Transport",
+    "bus": "Bus",
+    "taxi": "Taxi",
+    "fuel": "Fuel",
+    "train": "Train",
+    "shopping": "Shopping",
+    "bills": "Bills",
+    "rent": "Rent",
+    "phone": "Phone",
+    "electricity": "Electricity",
+    "water": "Water",
+    "internet": "Internet",
+    "subscriptions": "Subscriptions",
+    "streaming": "Streaming",
+    "software": "Software",
+    "apps": "Apps",
+    "cloudServices": "Cloud services",
+    "health": "Health",
+    "education": "Education",
+    "entertainment": "Entertainment",
+    "car": "Car",
+    "maintenance": "Maintenance",
+    "parking": "Parking",
+    "insurance": "Insurance",
+    "washing": "Washing",
+    "income": "Income",
+    "salary": "Salary",
+    "gift": "Gift",
+    "refund": "Refund",
+    "sideIncome": "Side income",
+    "savings": "Savings",
+    "other": "Other"
   },
   "insights": {
     "foodSpendingRising": "Food spending is rising faster than usual.",

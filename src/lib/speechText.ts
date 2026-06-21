@@ -45,6 +45,15 @@ const CURRENCY_UNITS: Record<string, CurrencySpeechUnit> = {
   },
 };
 
+const HEBREW_CURRENCY_UNITS: Record<string, CurrencySpeechUnit> = {
+  ILS: { singular: 'שקל', plural: 'שקלים', fullSingular: 'שקל ישראלי', fullPlural: 'שקלים ישראליים' },
+  USD: { singular: 'דולר אמריקאי', plural: 'דולרים אמריקאיים' },
+  EUR: { singular: 'אירו', plural: 'אירו' },
+  GBP: { singular: 'לירה שטרלינג', plural: 'לירות שטרלינג' },
+};
+
+export type SpeechLocale = 'en' | 'he';
+
 const CURRENCY_ALIASES: Record<string, string> = {
   ILS: 'ILS',
   '₪': 'ILS',
@@ -124,10 +133,12 @@ function amountToWords(amount: number): string {
 function currencyUnitPhrase(
   amount: number,
   currency: string,
-  style: MoneySpeechStyle = 'short'
+  style: MoneySpeechStyle = 'short',
+  speechLocale: SpeechLocale = 'en'
 ): string {
   const code = normalizeCurrencyCode(currency);
-  const unit = CURRENCY_UNITS[code];
+  const units = speechLocale === 'he' ? HEBREW_CURRENCY_UNITS : CURRENCY_UNITS;
+  const unit = units[code];
   const abs = Math.abs(amount);
   const isSingular = abs === 1 || abs === -1;
 
@@ -159,14 +170,15 @@ export function formatDaysForSpeech(value: unknown): string {
 export function formatMoneyForSpeech(
   amount: unknown,
   currency = 'ILS',
-  options?: { style?: MoneySpeechStyle }
+  options?: { style?: MoneySpeechStyle; speechLocale?: SpeechLocale }
 ): string {
   const n = parseNumeric(amount);
   if (n == null) return '';
 
   const style = options?.style ?? 'short';
+  const speechLocale = options?.speechLocale ?? 'en';
   const words = amountToWords(n);
-  const unit = currencyUnitPhrase(n, currency, style);
+  const unit = currencyUnitPhrase(n, currency, style, speechLocale);
   return `${words} ${unit}`;
 }
 
@@ -200,38 +212,44 @@ function formatIsoDateForSpeech(value: string): string {
   return `${months[month - 1]} ${intToWords(day)}, ${intToWords(year)}`;
 }
 
-function replaceCurrencyPatterns(text: string, profileCurrency = 'ILS'): string {
+function replaceCurrencyPatterns(text: string, profileCurrency = 'ILS', speechLocale: SpeechLocale = 'en'): string {
   let result = text;
 
+  const moneyOpts = { speechLocale };
+
   result = result.replace(/₪\s*([\d,]+(?:\.\d+)?)/g, (_, amount) =>
-    formatMoneyForSpeech(parseNumeric(amount), 'ILS')
+    formatMoneyForSpeech(parseNumeric(amount), 'ILS', moneyOpts)
   );
 
   result = result.replace(
     /\b(ILS|USD|EUR|GBP|NIS)\s*([\d,]+(?:\.\d+)?)/gi,
-    (_, code, amount) => formatMoneyForSpeech(parseNumeric(amount), String(code).toUpperCase())
+    (_, code, amount) => formatMoneyForSpeech(parseNumeric(amount), String(code).toUpperCase(), moneyOpts)
   );
 
   result = result.replace(
     /([\d,]+(?:\.\d+)?)\s*(ILS|USD|EUR|GBP|NIS|₪)\b/gi,
-    (_, amount, code) => formatMoneyForSpeech(parseNumeric(amount), String(code).toUpperCase())
+    (_, amount, code) => formatMoneyForSpeech(parseNumeric(amount), String(code).toUpperCase(), moneyOpts)
   );
 
   result = result.replace(/\$\s*([\d,]+(?:\.\d+)?)/g, (_, amount) =>
-    formatMoneyForSpeech(parseNumeric(amount), 'USD')
+    formatMoneyForSpeech(parseNumeric(amount), 'USD', moneyOpts)
   );
 
   result = result.replace(/€\s*([\d,]+(?:\.\d+)?)/g, (_, amount) =>
-    formatMoneyForSpeech(parseNumeric(amount), 'EUR')
+    formatMoneyForSpeech(parseNumeric(amount), 'EUR', moneyOpts)
   );
 
   result = result.replace(/£\s*([\d,]+(?:\.\d+)?)/g, (_, amount) =>
-    formatMoneyForSpeech(parseNumeric(amount), 'GBP')
+    formatMoneyForSpeech(parseNumeric(amount), 'GBP', moneyOpts)
   );
 
-  // Standalone currency codes in agent speech (not part of longer words)
-  result = result.replace(/\bILS\b/g, profileCurrency === 'ILS' ? 'shekels' : 'ILS');
-  result = result.replace(/\bNIS\b/gi, 'shekels');
+  if (speechLocale === 'he') {
+    result = result.replace(/\bILS\b/g, 'שקלים');
+    result = result.replace(/\bNIS\b/gi, 'שקלים');
+  } else {
+    result = result.replace(/\bILS\b/g, profileCurrency === 'ILS' ? 'shekels' : 'ILS');
+    result = result.replace(/\bNIS\b/gi, 'shekels');
+  }
 
   return result;
 }
@@ -261,7 +279,11 @@ function replaceAbbreviations(text: string): string {
  * Final pass for agent speech strings. Avoid passing raw UI labels through this
  * when possible — prefer structured summaries built with the helpers above.
  */
-export function normalizeAgentSpeechText(text: string, profileCurrency = 'ILS'): string {
+export function normalizeAgentSpeechText(
+  text: string,
+  profileCurrency = 'ILS',
+  speechLocale: SpeechLocale = 'en'
+): string {
   if (!text.trim()) return '';
 
   let result = text
@@ -269,7 +291,7 @@ export function normalizeAgentSpeechText(text: string, profileCurrency = 'ILS'):
     .replace(/\s+/g, ' ')
     .trim();
 
-  result = replaceCurrencyPatterns(result, profileCurrency);
+  result = replaceCurrencyPatterns(result, profileCurrency, speechLocale);
   result = replacePercentPatterns(result);
   result = replaceDatePatterns(result);
   result = replaceAbbreviations(result);

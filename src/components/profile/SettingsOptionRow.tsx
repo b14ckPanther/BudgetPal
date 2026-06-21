@@ -28,7 +28,7 @@ export function SettingsOptionRow({
       style={{ marginBottom: spacing.sm, opacity: disabled ? 0.6 : 1 }}
     >
       <View style={styles.row}>
-        <View style={{ flex: 1, paddingRight: spacing.sm }}>
+        <View style={{ flex: 1, paddingEnd: spacing.sm }}>
           <Text variant="bodySmall" weight="medium">
             {label}
           </Text>

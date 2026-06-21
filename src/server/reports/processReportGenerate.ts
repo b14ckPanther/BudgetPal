@@ -121,6 +121,13 @@ export async function processReportGenerate(
 ): Promise<ProcessReportResult> {
   await markStalePendingFailed(supabase, userId);
 
+  const { data: profileRow } = await supabase
+    .from('profiles')
+    .select('preferred_language')
+    .eq('id', userId)
+    .maybeSingle();
+  const skipPdfForHebrew = profileRow?.preferred_language === 'he';
+
   const existing = await resolveIdempotentRow(supabase, userId, params.idempotencyKey);
   if (existing) {
     if (existing.status === 'ready') {
@@ -195,7 +202,7 @@ export async function processReportGenerate(
     computedReport.metrics.recommendations = narrative.recommendations;
 
     let filePath: string | null = null;
-    if (params.includePdf !== false) {
+    if (params.includePdf !== false && !skipPdfForHebrew) {
       const pdfBuffer = await renderReportPdf(computedReport, narrative);
       filePath = await uploadReportPdf(userId, reportId, pdfBuffer);
     }

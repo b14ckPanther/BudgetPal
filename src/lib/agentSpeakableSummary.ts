@@ -4,7 +4,7 @@
  */
 
 import { AgentCard, AgentIntent } from '@/types/agent';
-import { t } from '@/lib/i18n';
+import { t, getI18nLocale } from '@/lib/i18n';
 import {
   formatCategoryForSpeech,
   formatDaysForSpeech,
@@ -250,5 +250,6 @@ export function buildAgentSpeakableSummary(input: SpeakableSummaryInput): string
   }
 
   if (!raw) return null;
-  return normalizeAgentSpeechText(raw, currency);
+  const speechLocale = getI18nLocale() === 'he' ? 'he' : 'en';
+  return normalizeAgentSpeechText(raw, currency, speechLocale);
 }

@@ -1,79 +1,98 @@
-# BudgetPal Demo Runbook
+# BudgetPal Demo Runbook — Noor presentation account
 
-Development-only guide for resetting a dedicated demo account before presentations.
+Development-only guide for the **Noor** presentation demo (`noor@gmail.com`).
+
+## Demo identity (public)
+
+| Field | Value |
+|-------|--------|
+| Email | `noor@gmail.com` |
+| Username | `noor` |
+| User UUID | `6e6f6f72-6465-4000-8000-000000000001` |
+
+Password is **not** stored in the repo. Set `DEMO_NOOR_PASSWORD` in local `.env` only.
 
 ## Prerequisites
 
-- Local `.env` with `EXPO_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (never commit these).
-- A dedicated demo Supabase user UUID — not a production or personal account.
-- Expo dev server running separately for app verification.
+- Local `.env` with `EXPO_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `DEMO_NOOR_PASSWORD`.
+- Migration `20260620000011_seed_noor_demo_account.sql` applied to your Supabase project.
+- Migration `20260620000012_repair_noor_demo_baseline.sql` applied (replaces `seed_demo_noor_baseline` RPC with cycle-aware repair logic).
+- Expo dev server for app verification.
 
-## What the reset script clears (demo user only)
+## First-time setup
 
-| Area | Cleared |
-|------|---------|
-| Agent chat | `agent_messages`, `agent_actions` |
-| Financial activity | `transactions`, `receipts`, `voice_entries` |
-| Reports | `reports` rows + PDF objects in `report-exports` |
-| Warnings / events | `warnings`, `budget_events` |
-| Receipt images | Objects under `receipt-scans/{demoUserId}/` |
+```bash
+# 1. Apply migrations (Supabase CLI or dashboard)
+supabase db push
 
-**Not cleared:** `profiles`, `budgets`, `categories`, `budget_category_limits`, auth account.
+# 2. Create auth user + seed baseline
+npm run demo-provision
 
-## Pre-demo checklist
+# 3. Validate
+npm run demo-validate
+```
 
-1. Sign in to the demo account on a test device and note the user UUID (Profile → or Supabase Auth dashboard).
-2. Confirm no other users share this device session.
-3. Run a dry run (see below) and verify counts match expectations.
-4. Close the app or sign out before the real reset to avoid stale cached queries.
+## What `demo-reset` does (Noor only)
+
+| Step | Action |
+|------|--------|
+| Storage | Deletes objects under `receipt-scans/{userId}/` and `report-exports/{userId}/` |
+| Mutable data | Clears agent chat, transactions, receipts, voice entries, reports, warnings, events, limits |
+| Baseline | Re-runs shared SQL `seed_demo_noor_baseline` (same source as provision) |
+
+**Preserved:** auth account, profile, categories, budget row.
 
 ## Dry run
 
 ```bash
-node scripts/demo-reset.mjs --demo-user-id=<DEMO_USER_UUID> --dry-run
+npm run demo-reset -- --dry-run
 ```
 
-Expected: JSON summary listing row counts per table and object counts per bucket for **only** the demo user. No writes occur.
-
-## Real reset
+## Real reset + reseed
 
 ```bash
-node scripts/demo-reset.mjs --demo-user-id=<DEMO_USER_UUID> --confirm
+npm run demo-reset -- --confirm
 ```
 
-Expected: concise JSON `demo-reset-complete` log. No secrets, signed URLs, or file paths in output.
+## Post-reset / post-provision
 
-## Post-reset recovery
+1. Sign in as `noor@gmail.com` on device.
+2. Bootstrap routes to main app (onboarding complete).
+3. Agent tab has **empty** chat — start presentation fresh.
+4. Budget shows healthy / near-limit / over-budget categories.
+5. Activity shows 50+ confirmed transactions across sources.
+6. Reports history is empty — generate monthly report live during demo.
+7. Scan a real receipt live for the receipt demo (seed receipt has metadata only, no image).
 
-1. Sign in again as the demo user.
-2. Bootstrap should route through `/` → main app (onboarding already complete).
-3. Agent tab should show a fresh chat with no pending proposals.
-4. Activity and Reports should be empty; Budget limits and profile settings remain.
-5. Optionally log one sample transaction or run a scripted voice/receipt demo.
+## Seeded presentation states (current cycle)
+
+| Category | Intended state |
+|----------|----------------|
+| Shopping | Healthy (&lt; 50%) |
+| Food & Drinks | Near limit (~80%) |
+| Car | Slightly over budget (~105%) |
+| Subscriptions | Recurring (Netflix, Spotify, Cellcom history) |
 
 ## Safety rules
 
-- Never run without `--demo-user-id`.
+- `demo-reset` only accepts the fixed Noor UUID.
 - Never run without `--dry-run` or `--confirm`.
-- Never add this script to the mobile app or a public API route.
-- Never commit service-role keys or demo credentials.
-- Never use broad `DELETE` without `user_id` filter (the script enforces per-table scoped deletes).
+- Never add provisioning/reset to the mobile app or public API routes.
+- Never commit service-role keys, passwords, or bcrypt hashes.
 
-## Phase 8 verification tie-ins
+## Validation
 
-| Check | How |
-|-------|-----|
-| Dry run scopes one user | Inspect dry-run JSON — only `demoUserId` counts |
-| Real reset isolation | Compare another user's data before/after — unchanged |
-| Clear History + pending | Create a proposal, confirm Clear History is blocked |
-| Session expiry | Force 401 — single toast, single login redirect |
-| Report detail metadata | Open report from large history — single `GET /api/reports/[id]` |
+```bash
+npm run demo-validate
+```
+
+Checks auth user, profile, budget, limits, transaction volume, sources, recurring merchants, receipt link, no pending agent actions, no fake report PDF paths.
 
 ## Troubleshooting
 
 | Issue | Action |
 |-------|--------|
-| Missing env vars | Copy from `.env.example`; fill service role locally only |
-| Invalid UUID | Copy exact user id from Supabase Auth |
-| Storage cleanup partial | Re-run dry run; manually verify bucket folder is empty in dashboard |
-| App shows stale data | Sign out, sign in, or kill app after reset |
+| `seed_demo_noor_baseline` not found | Apply migration `20260620000011` |
+| Missing `DEMO_NOOR_PASSWORD` | Add to local `.env` only |
+| Login fails | Re-run `npm run demo-provision` |
+| Stale app data | Sign out and sign in after reset |

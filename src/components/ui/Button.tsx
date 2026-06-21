@@ -139,7 +139,7 @@ export function Button({
           <Text
             variant="label"
             weight="medium"
-            style={[vs.text, ss.text, icon ? { marginLeft: spacing.sm } : undefined]}
+            style={[vs.text, ss.text, icon ? { marginStart: spacing.sm } : undefined]}
           >
             {label}
           </Text>

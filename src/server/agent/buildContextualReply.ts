@@ -8,11 +8,14 @@ import { Database } from '../../types/database';
 import { calculateBudgetSummary } from '../../lib/budgets';
 import { formatCategoryForSpeech } from '../../lib/speechText';
 import { loadUserContext } from './loadUserContext';
-import en from '../../locales/en.json';
+import { AgentLanguage, getAgentRepliesCatalog } from './language';
+import {
+  pickUnusedVariant,
+  shouldIncludeGreetingInsight,
+  shouldMentionSafeToSpend,
+} from './responseSelection';
 
-type AgentReplies = typeof en.agentReplies;
-
-const templates = en.agentReplies as AgentReplies;
+type AgentReplies = ReturnType<typeof getAgentRepliesCatalog>;
 
 export interface AgentReplyContext {
   firstName?: string;
@@ -77,6 +80,23 @@ export async function getIntentRotationIndex(
   return count ?? 0;
 }
 
+export async function loadRecentAgentReplies(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  limit = 10
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('agent_messages')
+    .select('content')
+    .eq('user_id', userId)
+    .eq('role', 'agent')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data.map((row) => row.content).filter((content): content is string => !!content);
+}
+
 export async function loadAgentReplyContext(
   supabase: SupabaseClient<Database>,
   userId: string,
@@ -114,11 +134,11 @@ export async function loadAgentReplyContext(
   };
 }
 
-export function buildGreetingReply(
+function greetingTemplateVars(
   context: AgentReplyContext,
   rotationIndex: number
-): ContextualReply {
-  const vars = {
+): Record<string, string> {
+  return {
     ...nameVars(context.firstName, rotationIndex),
     category: formatCategoryForSpeech(context.warningCategory || 'your budget'),
     percent: context.warningPercent != null ? String(Math.round(context.warningPercent)) : '',
@@ -126,20 +146,38 @@ export function buildGreetingReply(
       context.safeToSpend != null ? String(Math.max(0, Math.floor(context.safeToSpend))) : '',
     currency: context.currency,
   };
+}
+
+export function buildGreetingReply(
+  context: AgentReplyContext,
+  rotationIndex: number,
+  language: AgentLanguage = 'en',
+  recentReplies: string[] = []
+): ContextualReply {
+  const templates = getAgentRepliesCatalog(language) as AgentReplies;
+  const vars = greetingTemplateVars(context, rotationIndex);
 
   let pool: readonly string[];
   let promptSets: readonly (readonly string[])[];
 
-  if (context.warningCategory && context.warningPercent != null && context.warningPercent >= 75) {
-    pool = templates.greeting.nearLimit;
-    promptSets = templates.promptSets.nearLimit;
-  } else if (!context.hasLimits || context.safeToSpend === null) {
+  if (!context.hasLimits || context.safeToSpend === null) {
     pool = templates.greeting.noLimits;
     promptSets = templates.promptSets.setupBudget;
   } else if (!context.hasTransactions) {
     pool = templates.greeting.noTransactions;
     promptSets = templates.promptSets.firstTransaction;
-  } else if (context.safeToSpend != null && context.safeToSpend > 0) {
+  } else if (
+    shouldIncludeGreetingInsight(context, rotationIndex, recentReplies) &&
+    context.warningPercent != null &&
+    context.warningPercent >= 100 &&
+    templates.greeting.overBudget?.length
+  ) {
+    pool = templates.greeting.overBudget;
+    promptSets = templates.promptSets.nearLimit;
+  } else if (shouldIncludeGreetingInsight(context, rotationIndex, recentReplies)) {
+    pool = templates.greeting.withInsight ?? templates.greeting.nearLimit;
+    promptSets = templates.promptSets.nearLimit;
+  } else if (shouldMentionSafeToSpend(context.safeToSpend, rotationIndex, recentReplies)) {
     pool = templates.greeting.safeToSpend;
     promptSets = templates.promptSets.dailySpend;
   } else {
@@ -147,8 +185,12 @@ export function buildGreetingReply(
     promptSets = templates.promptSets.general;
   }
 
+  const message = pickUnusedVariant(pool, rotationIndex, recentReplies, (template) =>
+    applyTemplate(template, vars).replace(/\s+/g, ' ').trim()
+  );
+
   return {
-    message: applyTemplate(pickVariant(pool, rotationIndex), vars).replace(/\s+/g, ' ').trim(),
+    message,
     suggestedPrompts: pickPrompts(promptSets, rotationIndex, vars),
   };
 }
@@ -156,8 +198,11 @@ export function buildGreetingReply(
 export function buildOutOfScopeReply(
   context: AgentReplyContext,
   rotationIndex: number,
-  message: string
+  message: string,
+  language: AgentLanguage = 'en',
+  recentReplies: string[] = []
 ): ContextualReply {
+  const templates = getAgentRepliesCatalog(language) as AgentReplies;
   const lower = message.toLowerCase();
   const spendHint = /dinner|lunch|coffee|afford|buy|spend|purchase|shop/i.test(lower);
   const pool = spendHint ? templates.outOfScope.spendHint : templates.outOfScope.general;
@@ -165,25 +210,39 @@ export function buildOutOfScopeReply(
   const vars = nameVars(context.firstName, rotationIndex);
 
   return {
-    message: applyTemplate(pickVariant(pool, rotationIndex), vars).replace(/\s+/g, ' ').trim(),
+    message: pickUnusedVariant(pool, rotationIndex, recentReplies, (template) =>
+      applyTemplate(template, vars).replace(/\s+/g, ' ').trim()
+    ),
     suggestedPrompts: pickPrompts(promptSets, rotationIndex, vars),
   };
 }
 
-export function buildUnclearReply(rotationIndex: number): ContextualReply {
+export function buildUnclearReply(
+  rotationIndex: number,
+  language: AgentLanguage = 'en',
+  recentReplies: string[] = []
+): ContextualReply {
+  const templates = getAgentRepliesCatalog(language) as AgentReplies;
   return {
-    message: pickVariant(templates.unclear, rotationIndex),
+    message: pickUnusedVariant(templates.unclear, rotationIndex, recentReplies, (template) =>
+      template.trim()
+    ),
     suggestedPrompts: pickPrompts(templates.promptSets.general, rotationIndex, {}),
   };
 }
 
 export function buildAppGuidanceReply(
   context: AgentReplyContext,
-  rotationIndex: number
+  rotationIndex: number,
+  language: AgentLanguage = 'en',
+  recentReplies: string[] = []
 ): ContextualReply {
-  const greeting = buildGreetingReply(context, rotationIndex);
+  const templates = getAgentRepliesCatalog(language) as AgentReplies;
+  const greeting = buildGreetingReply(context, rotationIndex, language, recentReplies);
   return {
-    message: pickVariant(templates.appGuidance, rotationIndex),
+    message: pickUnusedVariant(templates.appGuidance, rotationIndex, recentReplies, (template) =>
+      template.trim()
+    ),
     suggestedPrompts: greeting.suggestedPrompts,
   };
 }

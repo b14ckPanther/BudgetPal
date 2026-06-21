@@ -361,7 +361,7 @@ export default function TransactionDetailScreen() {
               >
                 <View style={styles.dropdownContent}>
                   <Text variant="bodySmall" color={selectedSubcategory ? colors.textPrimary : colors.textMuted}>
-                    {selectedSubcategory ? selectedSubcategory.name : 'Select a subcategory'}
+                    {selectedSubcategory ? selectedSubcategory.name : t('transactions.selectSubcategory')}
                   </Text>
                   <ChevronDown size={16} color={colors.textMuted} />
                 </View>

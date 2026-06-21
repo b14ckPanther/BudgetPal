@@ -1,7 +1,9 @@
 /**
  * BudgetPal — Date Formatting Helpers
- * Relative date labels and formatted date strings.
  */
+
+import { getAppIntlLocale, formatNumber } from './formatLocale';
+import { t } from './i18n';
 
 /**
  * Format a date as a relative string (Today, Yesterday, or formatted date).
@@ -13,34 +15,29 @@ export function formatRelativeDate(date: Date | string): string {
   const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.floor((today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Yesterday';
-  if (diff < 7) return `${diff} days ago`;
+  if (diff === 0) return t('dates.today');
+  if (diff === 1) return t('dates.yesterday');
+  if (diff < 7) return t('dates.daysAgo', { count: diff });
   return formatDate(d);
 }
 
 /**
  * Format a date as a short readable string.
- * Example: "Jun 15" or "Jun 15, 2025"
  */
 export function formatDate(date: Date | string, includeYear?: boolean): string {
   const d = typeof date === 'string' ? new Date(date) : date;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const month = months[d.getMonth()];
-  const day = d.getDate();
-
-  if (includeYear) {
-    return `${month} ${day}, ${d.getFullYear()}`;
-  }
-  return `${month} ${day}`;
+  return d.toLocaleDateString(getAppIntlLocale(), {
+    month: 'short',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' } : {}),
+  });
 }
 
 /**
  * Format a date range string.
- * Example: "Jun 1 - Jun 30"
  */
 export function formatDateRange(start: Date | string, end: Date | string): string {
-  return `${formatDate(start)} - ${formatDate(end)}`;
+  return t('dates.range', { start: formatDate(start), end: formatDate(end) });
 }
 
 /**
@@ -51,4 +48,10 @@ export function getRemainingDays(cycleEndDate: Date | string): number {
   const now = new Date();
   const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   return Math.max(0, diff);
+}
+
+export function formatRemainingDays(days: number): string {
+  if (days === 0) return t('dates.remainingToday');
+  if (days === 1) return t('dates.remainingOneDay');
+  return t('dates.remainingDays', { count: formatNumber(days) });
 }

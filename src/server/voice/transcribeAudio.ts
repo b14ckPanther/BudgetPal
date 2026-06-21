@@ -20,7 +20,8 @@ function getClient(): OpenAI {
 
 export async function transcribeAudioBuffer(
   buffer: Buffer,
-  mimeType: string
+  mimeType: string,
+  languageHint: 'en' | 'he' = 'en'
 ): Promise<string> {
   const client = getClient();
   const ext = extensionForMime(mimeType);
@@ -29,7 +30,7 @@ export async function transcribeAudioBuffer(
   const result = await client.audio.transcriptions.create({
     file,
     model: 'whisper-1',
-    language: 'en',
+    language: languageHint,
   });
 
   const text = result.text?.trim();

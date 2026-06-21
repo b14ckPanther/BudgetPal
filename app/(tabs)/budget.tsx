@@ -17,6 +17,7 @@ import { Calendar, PenLine, Plus, AlertTriangle } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { Screen, Text, Card, MoneyAmount, ProgressBar, Input, Button } from '@/components/ui';
 import { ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
+import { getCategoryDisplayName } from '@/lib/categoryDisplay';
 import { t } from '@/lib/i18n';
 import { useFeedback } from '@/components/feedback';
 import { formatCurrency } from '@/lib/currency';
@@ -245,7 +246,7 @@ export default function BudgetScreen() {
                     <View style={styles.catRow}>
                       <View style={{ flex: 1 }}>
                         <View style={styles.row}>
-                          <Text variant="bodySmall" weight="medium" color={colors.textPrimary}>{cat.name}</Text>
+                          <Text variant="bodySmall" weight="medium" color={colors.textPrimary}>{getCategoryDisplayName(cat.name)}</Text>
                           <PenLine size={13} color={colors.textMuted} />
                         </View>
                         <View style={[styles.catMeta, { marginTop: spacing.xs }]}>
@@ -274,7 +275,7 @@ export default function BudgetScreen() {
         {unbudgetedCategories.length > 0 && (
           <View style={{ marginTop: spacing.xl }}>
             <Text variant="label" color={colors.textMuted} style={{ marginBottom: spacing.md, letterSpacing: 0.8, textTransform: 'uppercase', fontSize: 11 }}>
-              Unbudgeted Categories
+              {t('budget.unbudgetedCategories')}
             </Text>
             <View style={{ gap: spacing.sm }}>
               {unbudgetedCategories.map((cat) => (
@@ -286,7 +287,7 @@ export default function BudgetScreen() {
                 >
                   <View style={styles.unbudgetedRow}>
                     <View>
-                      <Text variant="bodySmall" weight="medium" color={colors.textSecondary}>{cat.name}</Text>
+                      <Text variant="bodySmall" weight="medium" color={colors.textSecondary}>{getCategoryDisplayName(cat.name)}</Text>
                       {cat.spent > 0 && (
                         <Text variant="caption" color={colors.textMuted} style={{ marginTop: spacing.xxs }}>
                           Spent {formatCurrency(cat.spent, budget.currency)} this cycle

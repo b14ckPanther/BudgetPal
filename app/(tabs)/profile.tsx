@@ -23,6 +23,7 @@ import { useTheme } from '@/theme';
 import { Screen, Text, Card, Button } from '@/components/ui';
 import { ScreenLoadingState, ScreenErrorState } from '@/components/feedback';
 import { t } from '@/lib/i18n';
+import { useLocale } from '@/components/locale';
 import { supabase } from '@/lib/supabase';
 import { useCurrentProfile, useCurrentBudget, queryKeys } from '@/hooks/useBudgetQueries';
 import { updateProfile } from '@/services/profile';
@@ -106,6 +107,7 @@ function SettingToggleRow({
 
 export default function ProfileScreen() {
   const { colors, spacing } = useTheme();
+  const { locale } = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { confirm, toast } = useFeedback();
@@ -267,7 +269,7 @@ export default function ProfileScreen() {
         <SettingRow
           icon={<Languages size={18} color={colors.textSecondary} />}
           label={t('profile.language')}
-          value={t('profileSettings.languageEnglish')}
+          value={locale === 'he' ? t('profileSettings.languageHebrew') : t('profileSettings.languageEnglish')}
           onPress={() => router.push('/profile/language')}
         />
         <SettingRow

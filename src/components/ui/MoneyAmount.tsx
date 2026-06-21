@@ -8,6 +8,7 @@ import { View, StyleSheet, type ViewStyle } from 'react-native';
 import { useTheme } from '@/theme';
 import { Text } from './Text';
 import { formatCurrency } from '@/lib/currency';
+import { ltrIsolatedTextStyle } from '@/lib/rtl';
 
 type MoneySize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -53,6 +54,7 @@ export function MoneyAmount({
             lineHeight: sizeMap[size].lineHeight,
             color: resolvedColor,
           },
+          ltrIsolatedTextStyle(),
         ]}
       >
         {sign}{formatted}

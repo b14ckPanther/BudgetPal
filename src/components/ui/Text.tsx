@@ -6,6 +6,8 @@
 import React from 'react';
 import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
 import { useTheme } from '@/theme';
+import { useIsRtl } from '@/components/locale/LocaleProvider';
+import { writingDirectionForMixedContent } from '@/lib/rtl';
 
 type TextVariant = 'display' | 'h1' | 'h2' | 'h3' | 'body' | 'bodySmall' | 'caption' | 'label' | 'money';
 
@@ -26,6 +28,7 @@ export function Text({
   ...rest
 }: TextProps) {
   const { colors, typography } = useTheme();
+  const isRtl = useIsRtl();
 
   const variantStyles: Record<TextVariant, TextStyle> = {
     display: {
@@ -94,7 +97,8 @@ export function Text({
         variantStyles[variant],
         fontFamilyOverride,
         color ? { color } : undefined,
-        align ? { textAlign: align } : undefined,
+        align ? { textAlign: align } : { textAlign: isRtl ? 'right' : 'left' },
+        { writingDirection: writingDirectionForMixedContent() },
         style,
       ]}
       {...rest}

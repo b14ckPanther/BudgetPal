@@ -3,6 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/heebo": "^0.4.2",
+    "@expo-google-fonts/ubuntu": "^0.4.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "@supabase/supabase-js": "^2.108.2",
@@ -27,6 +29,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-system-ui": "~6.0.9",
+    "expo-updates": "~29.0.18",
     "lucide-react-native": "^0.511.0",
     "openai": "^6.44.0",
     "pdf-lib": "^1.17.1",
@@ -45,6 +48,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
+    "canvas": "^3.2.3",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
@@ -55,7 +59,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "demo-reset": "node scripts/demo-reset.mjs"
+    "demo-reset": "node scripts/demo-reset.mjs",
+    "demo-provision": "node scripts/demo-provision-noor.mjs",
+    "demo-validate": "node scripts/demo-validate.mjs",
+    "validate:locales": "node scripts/validate-locale-parity.mjs"
   },
   "private": true
 }

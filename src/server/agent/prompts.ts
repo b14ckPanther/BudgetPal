@@ -33,6 +33,8 @@ Respond with JSON:
   "confidence": 0.0-1.0,
   "message": "Brief reply. For analysis/affordability/budget intents, a short acknowledgment. For greetings/guidance, the full response."
 }
+
+{{languageInstruction}}
 `;
 
 /**

@@ -1,18 +1,14 @@
 /**
- * Session voice selection and future Profile speech preferences.
+ * Session voice selection and Profile speech preferences.
  */
 
 import * as Speech from 'expo-speech';
 import { Voice, VoiceQuality } from 'expo-speech';
 
 export interface AgentSpeechPreferences {
-  /** BCP-47 language, e.g. en-US */
   language?: string;
-  /** Device voice identifier from Speech.getAvailableVoicesAsync() */
   voiceIdentifier?: string;
-  /** Speech rate multiplier (platform-specific; ~0.92–0.96 is natural on iOS) */
   rate?: number;
-  /** Profile default currency for money normalization */
   profileCurrency?: string;
 }
 
@@ -21,27 +17,36 @@ export interface ResolvedSpeechVoice {
   language: string;
   name?: string;
   quality?: VoiceQuality | string;
-  source: 'preference' | 'enhanced' | 'english' | 'default';
+  source: 'preference' | 'enhanced' | 'locale' | 'default';
 }
 
 const ENGLISH_LOCALE_PRIORITY = ['en-US', 'en-GB', 'en-AU', 'en-IE', 'en-CA', 'en-IN', 'en'];
+const HEBREW_LOCALE_PRIORITY = ['he-IL', 'he'];
 
 const DEFAULT_SPEECH_RATE = 0.94;
 const DEFAULT_SPEECH_LANGUAGE = 'en-US';
+const DEFAULT_HEBREW_SPEECH_LANGUAGE = 'he-IL';
 
 let cachedVoice: ResolvedSpeechVoice | null = null;
 let voiceResolutionPromise: Promise<ResolvedSpeechVoice> | null = null;
+let cachedLocaleKey: string | null = null;
 
-function scoreVoice(voice: Voice): number {
+function isHebrewLanguage(language?: string): boolean {
+  return (language || '').toLowerCase().startsWith('he');
+}
+
+function scoreVoice(voice: Voice, localePriority: string[]): number {
   const language = (voice.language || '').toLowerCase();
   let score = 0;
 
-  const localeIndex = ENGLISH_LOCALE_PRIORITY.findIndex((locale) =>
-    language === locale.toLowerCase() || language.startsWith(`${locale.toLowerCase()}-`)
+  const localeIndex = localePriority.findIndex(
+    (locale) => language === locale.toLowerCase() || language.startsWith(`${locale.toLowerCase()}-`)
   );
   if (localeIndex >= 0) {
     score += 200 - localeIndex * 10;
-  } else if (language.startsWith('en')) {
+  } else if (localePriority === ENGLISH_LOCALE_PRIORITY && language.startsWith('en')) {
+    score += 100;
+  } else if (localePriority === HEBREW_LOCALE_PRIORITY && language.startsWith('he')) {
     score += 100;
   } else {
     return -1;
@@ -66,21 +71,25 @@ function voiceFromSelection(voice: Voice, source: ResolvedSpeechVoice['source'])
   };
 }
 
-async function pickBestEnglishVoice(
+async function pickBestVoice(
   voices: Voice[],
   preferredLanguage?: string
 ): Promise<ResolvedSpeechVoice> {
+  const hebrew = isHebrewLanguage(preferredLanguage);
+  const localePriority = hebrew ? HEBREW_LOCALE_PRIORITY : ENGLISH_LOCALE_PRIORITY;
+  const fallbackLanguage = hebrew ? DEFAULT_HEBREW_SPEECH_LANGUAGE : DEFAULT_SPEECH_LANGUAGE;
+
   const ranked = voices
-    .map((voice) => ({ voice, score: scoreVoice(voice) }))
+    .map((voice) => ({ voice, score: scoreVoice(voice, localePriority) }))
     .filter((entry) => entry.score >= 0)
     .sort((a, b) => b.score - a.score);
 
   if (preferredLanguage) {
     const preferred = ranked.find(({ voice }) =>
-      voice.language?.toLowerCase().startsWith(preferredLanguage.toLowerCase())
+      voice.language?.toLowerCase().startsWith(preferredLanguage.toLowerCase().split('-')[0])
     );
     if (preferred) {
-      const source = preferred.voice.quality === VoiceQuality.Enhanced ? 'enhanced' : 'english';
+      const source = preferred.voice.quality === VoiceQuality.Enhanced ? 'enhanced' : 'locale';
       return voiceFromSelection(preferred.voice, source);
     }
   }
@@ -91,11 +100,11 @@ async function pickBestEnglishVoice(
   }
 
   if (ranked[0]) {
-    return voiceFromSelection(ranked[0].voice, 'english');
+    return voiceFromSelection(ranked[0].voice, 'locale');
   }
 
   return {
-    language: preferredLanguage || DEFAULT_SPEECH_LANGUAGE,
+    language: preferredLanguage || fallbackLanguage,
     source: 'default',
   };
 }
@@ -103,6 +112,8 @@ async function pickBestEnglishVoice(
 export async function resolveSpeechVoice(
   preferences: AgentSpeechPreferences = {}
 ): Promise<ResolvedSpeechVoice> {
+  const localeKey = preferences.language || 'en-US';
+
   if (preferences.voiceIdentifier) {
     return {
       identifier: preferences.voiceIdentifier,
@@ -111,7 +122,7 @@ export async function resolveSpeechVoice(
     };
   }
 
-  if (cachedVoice) {
+  if (cachedVoice && cachedLocaleKey === localeKey) {
     return cachedVoice;
   }
 
@@ -119,8 +130,9 @@ export async function resolveSpeechVoice(
     voiceResolutionPromise = (async () => {
       try {
         const voices = await Speech.getAvailableVoicesAsync();
-        const resolved = await pickBestEnglishVoice(voices, preferences.language);
+        const resolved = await pickBestVoice(voices, preferences.language);
         cachedVoice = resolved;
+        cachedLocaleKey = localeKey;
         return resolved;
       } catch (err) {
         console.warn('Failed to resolve speech voice:', err);
@@ -129,6 +141,7 @@ export async function resolveSpeechVoice(
           source: 'default',
         };
         cachedVoice = fallback;
+        cachedLocaleKey = localeKey;
         return fallback;
       } finally {
         voiceResolutionPromise = null;
@@ -154,4 +167,5 @@ export function getCachedSpeechVoice(): ResolvedSpeechVoice | null {
 export function resetSpeechVoiceCache(): void {
   cachedVoice = null;
   voiceResolutionPromise = null;
+  cachedLocaleKey = null;
 }

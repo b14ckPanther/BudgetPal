@@ -1,7 +1,8 @@
 /**
  * BudgetPal — Currency Formatting Helper
- * Formats monetary amounts with currency symbols.
  */
+
+import { getAppIntlLocale } from './formatLocale';
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   ILS: '\u20AA',
@@ -14,8 +15,6 @@ const DEFAULT_CURRENCY = 'ILS';
 
 /**
  * Format a number as a currency string.
- * Example: formatCurrency(72) => "₪72"
- * Example: formatCurrency(1234.5) => "₪1,234.50"
  */
 export function formatCurrency(
   amount: number,
@@ -26,8 +25,8 @@ export function formatCurrency(
   const showDecimals = options?.showDecimals ?? (amount % 1 !== 0);
 
   const formatted = showDecimals
-    ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : amount.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    ? amount.toLocaleString(getAppIntlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : amount.toLocaleString(getAppIntlLocale(), { maximumFractionDigits: 0 });
 
   return `${symbol}${formatted}`;
 }

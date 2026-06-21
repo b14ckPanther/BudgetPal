@@ -21,6 +21,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { MoneyAmount } from '@/components/ui/MoneyAmount';
 import { useFeedback } from '@/components/feedback';
 import { t } from '@/lib/i18n';
+import { useLocale, useIsRtl } from '@/components/locale';
 import { Report } from '@/types/api';
 import { getReportByIdApi, downloadAndShareReport } from '@/services/reports';
 
@@ -41,6 +42,7 @@ function ReportDetailHeader({
 }) {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
+  const isRtl = useIsRtl();
 
   return (
     <View
@@ -64,8 +66,12 @@ function ReportDetailHeader({
         accessibilityRole="button"
         accessibilityLabel={t('reports.backToReports')}
       >
-        <ArrowLeft size={20} color={colors.primary} />
-        <Text variant="bodySmall" color={colors.primary} weight="medium" style={{ marginLeft: 4 }}>
+        <ArrowLeft
+          size={20}
+          color={colors.primary}
+          style={isRtl ? { transform: [{ scaleX: -1 }] } : undefined}
+        />
+        <Text variant="bodySmall" color={colors.primary} weight="medium" style={{ marginStart: 4 }}>
           {t('common.back')}
         </Text>
       </Pressable>
@@ -115,6 +121,7 @@ export default function ReportDetailScreen() {
   const { colors, spacing } = useTheme();
   const { toast } = useFeedback();
   const router = useRouter();
+  const { locale } = useLocale();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
@@ -255,6 +262,11 @@ export default function ReportDetailScreen() {
               disabled={sharing}
               style={{ marginTop: spacing.xxl }}
             />
+          )}
+          {!report.hasPdf && locale === 'he' && (
+            <Text variant="bodySmall" color={colors.textMuted} style={{ marginTop: spacing.lg }}>
+              {t('reports.hebrewPdfUnavailable')}
+            </Text>
           )}
         </ScrollView>
       )}

@@ -57,9 +57,11 @@ export async function speakAgentText(
   }
 ): Promise<void> {
   const preferences = options.preferences ?? {};
+  const speechLocale = preferences.language?.toLowerCase().startsWith('he') ? 'he' : 'en';
   const normalized = normalizeAgentSpeechText(
     text,
-    preferences.profileCurrency || 'ILS'
+    preferences.profileCurrency || 'ILS',
+    speechLocale
   );
   if (!normalized.trim()) return;
 

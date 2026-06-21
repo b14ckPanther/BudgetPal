@@ -6,14 +6,16 @@
 import { chatCompletion } from '../ai';
 import { INTENT_SYSTEM_PROMPT } from './prompts';
 import { IntentClassification, IntentClassificationSchema } from '../validation';
+import { AgentLanguage, getLanguageInstruction } from './language';
 
 export async function classifyIntent(
   message: string,
-  context: { today: string; userName: string }
+  context: { today: string; userName: string; language?: AgentLanguage }
 ): Promise<IntentClassification> {
   const prompt = INTENT_SYSTEM_PROMPT
     .replace('{{today}}', context.today)
-    .replace('{{userName}}', context.userName || 'User');
+    .replace('{{userName}}', context.userName || 'User')
+    .replace('{{languageInstruction}}', getLanguageInstruction(context.language || 'en'));
 
   const messages = [
     { role: 'system' as const, content: prompt },

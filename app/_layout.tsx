@@ -1,11 +1,11 @@
 /**
  * BudgetPal — Root Layout
- * App entry point with ThemeProvider, QueryClientProvider, font loading, and navigation setup.
  */
 
 import React from 'react';
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '@/theme';
+import { LocaleProvider, LocalePreferenceSync, LocaleRestartDialog } from '@/components/locale';
 import { ThemePreferenceSync } from '@/components/theme/ThemePreferenceSync';
 import { FeedbackProvider, SessionRecoveryBootstrap } from '@/components/feedback';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,18 +22,22 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <FeedbackProvider>
-          <SessionRecoveryBootstrap />
-          <ThemePreferenceSync />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade',
-            }}
-          />
-        </FeedbackProvider>
-      </ThemeProvider>
+      <LocaleProvider>
+        <ThemeProvider>
+          <FeedbackProvider>
+            <SessionRecoveryBootstrap />
+            <LocalePreferenceSync />
+            <LocaleRestartDialog />
+            <ThemePreferenceSync />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'fade',
+              }}
+            />
+          </FeedbackProvider>
+        </ThemeProvider>
+      </LocaleProvider>
     </QueryClientProvider>
   );
 }

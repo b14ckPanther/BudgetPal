@@ -16,6 +16,7 @@ import { parseBudgetLimitChange } from './parseBudgetLimitChange';
 import { buildBudgetLimitProposal } from './buildBudgetLimitProposal';
 import { loadUserContext } from './loadUserContext';
 import { AgentChannel } from './processAgentMessage';
+import { AgentLanguage } from './language';
 import {
   buildAppGuidanceReply,
   buildGreetingReply,
@@ -23,6 +24,7 @@ import {
   buildUnclearReply,
   getIntentRotationIndex,
   loadAgentReplyContext,
+  loadRecentAgentReplies,
 } from './buildContextualReply';
 
 export interface IntentHandlerResult {
@@ -46,9 +48,11 @@ export async function handleAgentIntent(
     userMessageId?: string | null;
     channel?: AgentChannel;
     transcription?: string;
+    language?: AgentLanguage;
   }
 ): Promise<IntentHandlerResult> {
   const channel = context.channel ?? 'text';
+  const language = context.language ?? 'en';
   let agentResponseContent = context.classificationMessage;
   const cards: IntentHandlerResult['cards'] = [];
   const actions: IntentHandlerResult['actions'] = [];
@@ -368,21 +372,22 @@ export async function handleAgentIntent(
   if (intent === 'casual_greeting' || intent === 'app_guidance' || intent === 'out_of_scope' || intent === 'unclear') {
     const replyContext = await loadAgentReplyContext(supabase, userId, context.userName);
     const rotation = await getIntentRotationIndex(supabase, userId, intent);
+    const recentReplies = await loadRecentAgentReplies(supabase, userId, 10);
 
     if (intent === 'casual_greeting') {
-      const reply = buildGreetingReply(replyContext, rotation);
+      const reply = buildGreetingReply(replyContext, rotation, language, recentReplies);
       agentResponseContent = reply.message;
       suggestedPrompts = reply.suggestedPrompts;
     } else if (intent === 'app_guidance') {
-      const reply = buildAppGuidanceReply(replyContext, rotation);
+      const reply = buildAppGuidanceReply(replyContext, rotation, language, recentReplies);
       agentResponseContent = reply.message;
       suggestedPrompts = reply.suggestedPrompts;
     } else if (intent === 'out_of_scope') {
-      const reply = buildOutOfScopeReply(replyContext, rotation, message);
+      const reply = buildOutOfScopeReply(replyContext, rotation, message, language, recentReplies);
       agentResponseContent = reply.message;
       suggestedPrompts = reply.suggestedPrompts;
     } else {
-      const reply = buildUnclearReply(rotation);
+      const reply = buildUnclearReply(rotation, language, recentReplies);
       agentResponseContent = reply.message;
       suggestedPrompts = reply.suggestedPrompts;
     }

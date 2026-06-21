@@ -1,23 +1,34 @@
 /**
- * BudgetPal — Theme Provider with dark/light preference.
+ * BudgetPal — Theme Provider with dark/light preference and locale-aware typography.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { typography } from './typography';
+import { useLocale } from '@/components/locale/LocaleProvider';
+import { hideSplashScreen, preventSplashAutoHide } from '@/lib/splashScreen';
+import { getTypographyForLocale } from './typography';
+import { ALL_FONT_MAP } from './fonts';
 import { spacing } from './spacing';
 import { radius } from './radius';
 import { ColorPalette, ThemePreference, getColorsForPreference } from './colors';
+import type { TypographyTokens } from './typography';
 
-SplashScreen.preventAutoHideAsync();
+preventSplashAutoHide();
 
 const THEME_STORAGE_KEY = 'budgetpal.theme_preference';
 
 export interface Theme {
   colors: ColorPalette;
-  typography: typeof typography;
+  typography: TypographyTokens;
   spacing: typeof spacing;
   radius: typeof radius;
   preference: ThemePreference;
@@ -40,14 +51,11 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, initialPreference = 'dark' }: ThemeProviderProps) {
+  const { locale, ready: localeReady } = useLocale();
   const [preference, setPreferenceState] = useState<ThemePreference>(initialPreference);
   const [hydrated, setHydrated] = useState(false);
 
-  const [fontsLoaded] = useFonts({
-    'Ubuntu-Regular': require('../../assets/fonts/Ubuntu-Regular.ttf'),
-    'Ubuntu-Medium': require('../../assets/fonts/Ubuntu-Medium.ttf'),
-    'Ubuntu-Bold': require('../../assets/fonts/Ubuntu-Bold.ttf'),
-  });
+  const [fontsLoaded] = useFonts(ALL_FONT_MAP);
 
   useEffect(() => {
     let active = true;
@@ -67,15 +75,17 @@ export function ThemeProvider({ children, initialPreference = 'dark' }: ThemePro
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded && hydrated) {
-      SplashScreen.hideAsync();
+    if (fontsLoaded && hydrated && localeReady) {
+      void hideSplashScreen();
     }
-  }, [fontsLoaded, hydrated]);
+  }, [fontsLoaded, hydrated, localeReady]);
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
     void AsyncStorage.setItem(THEME_STORAGE_KEY, next);
   }, []);
+
+  const typography = useMemo(() => getTypographyForLocale(locale), [locale]);
 
   const value = useMemo<Theme>(
     () => ({
@@ -86,10 +96,10 @@ export function ThemeProvider({ children, initialPreference = 'dark' }: ThemePro
       preference,
       setPreference,
     }),
-    [preference, setPreference]
+    [preference, setPreference, typography]
   );
 
-  if (!fontsLoaded || !hydrated) {
+  if (!fontsLoaded || !hydrated || !localeReady) {
     return null;
   }
 
