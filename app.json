@@ -11,10 +11,11 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.budgetpal.app",
       "infoPlist": {
-        "CFBundleLocalizations": [
-          "en",
-          "he"
-        ]
+   "CFBundleLocalizations": [
+  "en",
+  "he"
+],
+"ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
