@@ -1,56 +1,149 @@
-# Welcome to your Expo app 👋
+# BudgetPal
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> **AI-first personal finance platform that transforms budgeting into a natural conversation.**
 
-## Get started
+BudgetPal is a cross-platform mobile application that combines conversational AI, voice interaction, receipt scanning, intelligent financial analysis, and real-time budgeting into a single experience.
 
-1. Install dependencies
+Instead of navigating traditional budgeting dashboards and manually categorizing transactions, users simply talk to BudgetPal. The AI understands intent, prepares actions, explains financial impact, and keeps users in control through transparent confirmation workflows.
 
-   ```bash
-   npm install
-   ```
+> **Final B.Sc. Capstone Project**
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Features
 
-In the output, you'll find options to open the app in a
+- AI-powered conversational budgeting
+- Voice input and spoken responses
+- Receipt scanning and transaction extraction
+- Smart budgeting with category tracking
+- Spending analytics and financial insights
+- PDF report generation
+- Notifications and reminders
+- Localization support
+- Supabase backend
+- Cross-platform mobile application (Expo + React Native)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Tech Stack
 
-## Get a fresh project
+### Mobile
+- React Native
+- Expo
+- TypeScript
 
-When you're ready, run:
+### Backend
+- Supabase
+- API Routes
+- PostgreSQL
 
-```bash
-npm run reset-project
+### AI
+
+- OpenAI
+- Natural Language Processing
+- Intelligent transaction parsing
+
+### State Management
+
+- TanStack React Query
+
+### Tooling
+
+- Expo Router
+- Zod
+- Git
+- ESLint
+
+---
+
+## Architecture
+
+```
+                User
+                  │
+      ┌───────────▼───────────┐
+      │ React Native / Expo   │
+      └───────────┬───────────┘
+                  │
+      ┌───────────▼───────────┐
+      │ AI Conversation Layer │
+      └───────────┬───────────┘
+                  │
+        ┌─────────┴─────────┐
+        │                   │
+        ▼                   ▼
+    OpenAI API         Supabase Backend
+                            │
+                            ▼
+                     PostgreSQL Database
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## Project Structure
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```text
+app/
+components/
+hooks/
+services/
+lib/
+supabase/
+assets/
+scripts/
+docs/
+```
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## Getting Started
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+git clone https://github.com/b14ckPanther/BudgetPal.git
+cd BudgetPal
+npm install
+```
 
-## Join the community
+Create a `.env` file with your required environment variables (Supabase credentials, OpenAI API key, and any other project-specific configuration).
 
-Join our community of developers creating universal apps.
+Run the development server:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx expo start
+```
+
+---
+
+## Design Philosophy
+
+BudgetPal was designed around an **agent-first** interaction model.
+
+Instead of asking users to learn the software, the software adapts to how users naturally communicate. Voice, text, and receipt images become structured financial actions while preserving transparency and user confirmation.
+
+---
+
+## Engineering Highlights
+
+- Modular component architecture
+- Reusable services layer
+- Strong TypeScript usage
+- Supabase-backed persistence
+- AI-assisted financial workflows
+- Automation scripts for demos and validation
+- Mobile-first user experience
+
+---
+
+## Roadmap
+
+- Multi-device synchronization
+- Investment portfolio support
+- Bank integrations
+- Smarter financial planning agents
+- Enhanced analytics dashboard
+
+---
+
+## License
+
+This repository is provided for portfolio and educational purposes.
