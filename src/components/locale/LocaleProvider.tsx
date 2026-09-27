@@ -90,8 +90,10 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
         }
       }
 
-      if (localeNeedsRtlChange(next)) {
-        applyRtlForLocale(next);
+      // Read before applying: native direction only changes after a reload.
+      const restartRequired = localeNeedsRtlChange(next);
+      applyRtlForLocale(next);
+      if (restartRequired) {
         setNeedsRestart(true);
       }
     },
@@ -126,8 +128,6 @@ export async function syncLocaleFromProfile(preferredLanguage?: string | null): 
   const next: AppLocale = preferredLanguage === 'he' ? 'he' : 'en';
   setI18nLocale(next);
   await persistLocale(next);
-  if (localeNeedsRtlChange(next)) {
-    applyRtlForLocale(next);
-  }
+  applyRtlForLocale(next);
   return next;
 }

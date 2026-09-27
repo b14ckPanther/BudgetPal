@@ -3,7 +3,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 
 export type AppLocale = 'en' | 'he';
 
@@ -18,7 +18,21 @@ export function getIntlLocale(locale: AppLocale): string {
   return locale === 'he' ? 'he-IL' : 'en-US';
 }
 
+/**
+ * On web, react-native-web has no swapLeftAndRightInRTL and forceRTL is a no-op,
+ * so direction is applied live on the document instead and never needs a reload.
+ */
+const isWeb = Platform.OS === 'web';
+
+function applyWebDirection(locale: AppLocale): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  root.dir = isRtlLocale(locale) ? 'rtl' : 'ltr';
+  root.lang = locale;
+}
+
 export function localeNeedsRtlChange(locale: AppLocale): boolean {
+  if (isWeb) return false;
   const shouldBeRtl = isRtlLocale(locale);
   return I18nManager.isRTL !== shouldBeRtl;
 }
@@ -34,6 +48,10 @@ export async function persistLocale(locale: AppLocale): Promise<void> {
 }
 
 export function applyRtlForLocale(locale: AppLocale): void {
+  if (isWeb) {
+    applyWebDirection(locale);
+    return;
+  }
   const shouldBeRtl = isRtlLocale(locale);
   I18nManager.allowRTL(true);
   I18nManager.swapLeftAndRightInRTL(true);

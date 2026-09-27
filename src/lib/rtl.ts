@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { I18nManager, StyleSheet, TextStyle, ViewStyle } from 'react-native';
+import { I18nManager, Platform, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { useIsRtl } from '@/components/locale/LocaleProvider';
 
 export function useRtlMirrorStyle(): ViewStyle {
@@ -38,6 +38,9 @@ export function ltrIsolatedTextStyle(): TextStyle {
 }
 
 export function isSystemRtl(): boolean {
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    return document.documentElement.dir === 'rtl';
+  }
   return I18nManager.isRTL;
 }
 
